@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #0a0f1a;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d1420;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3a52;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b4d68;
+}
+
+/* MapLibre overrides for dark theme */
+.maplibregl-ctrl-attrib {
+  background: rgba(13, 20, 32, 0.8) !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: #94a3b8 !important;
+}
+.maplibregl-popup-content {
+  background: #111a2a !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #2a3a52;
+  border-radius: 8px !important;
+  padding: 12px 14px !important;
+  font-size: 13px;
+}
+.maplibregl-popup-tip {
+  border-top-color: #2a3a52 !important;
+  border-bottom-color: #2a3a52 !important;
+}
+.maplibregl-popup-close-button {
+  color: #94a3b8 !important;
+  font-size: 18px !important;
+  top: 6px !important;
+  right: 8px !important;
+}
+
+/* Grid pattern background */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(42, 58, 82, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 58, 82, 0.15) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Tabular numbers for data displays */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
