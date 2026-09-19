@@ -197,6 +197,13 @@ def get_live_monitor_status(
             {**b, "connectivity": "OFFLINE" if conn_state == "OFFLINE" and b["bus_id"] == bus_id else b["status"]}
             for b in PROTOTYPE_FLEET_BUSES
         ],
-        "latest_events": recent_events,
+        "latest_events": [
+            {
+                **evt,
+                "reliability": evt["reliability"].get("score", 0.88) if isinstance(evt.get("reliability"), dict) else evt.get("reliability", 0.88),
+            }
+            if isinstance(evt, dict) else evt
+            for evt in recent_events
+        ],
         "disclaimer": "Prototype Camera / Test Stream — AI analysis connected to prototype processing pipeline. Simulated GPS.",
     }
