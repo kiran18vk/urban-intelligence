@@ -25,6 +25,7 @@ import {
   Cpu,
   ClipboardCheck,
   RefreshCw,
+  Info,
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { mockLiveMonitorStatus } from '@/data/mockData';
@@ -432,6 +433,14 @@ export const LiveMonitorPage: React.FC = () => {
                   </span>
                 </label>
               </div>
+            </div>
+
+            {/* Edge Bandwidth & Architecture Disclosure */}
+            <div className="bg-secondary/20 border-t border-border px-4 py-2.5 flex items-start gap-2.5 text-xs text-muted-foreground">
+              <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                <strong className="text-foreground">Edge Architecture:</strong> Edge AI processes video on the bus. The central platform receives lightweight AI events, metadata, reliability scores, and selective evidence — not continuous raw video.
+              </p>
             </div>
           </div>
 

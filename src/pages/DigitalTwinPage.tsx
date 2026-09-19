@@ -316,16 +316,16 @@ export function DigitalTwinPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <div className="rounded-xl border border-ink-700 bg-ink-850 p-3.5 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Active Fleet</span>
+            <span className="text-xs font-semibold text-slate-300">Fleet Buses (Active)</span>
             <Bus className="h-4 w-4 text-emerald-400" />
           </div>
           <p className="mt-2 text-xl font-bold tabular-nums text-slate-100">{summary.active_buses}</p>
-          <p className="mt-0.5 text-[10px] text-slate-500">Sensing Buses Online</p>
+          <p className="mt-0.5 text-[10px] text-slate-500">11 Network Sensing Buses</p>
         </div>
 
         <div className="rounded-xl border border-ink-700 bg-ink-850 p-3.5 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Roads Monitored</span>
+            <span className="text-xs font-semibold text-slate-300">Corridor Segments</span>
             <MapPin className="h-4 w-4 text-blue-400" />
           </div>
           <p className="mt-2 text-xl font-bold tabular-nums text-slate-100">{summary.roads_observed}</p>
@@ -334,7 +334,7 @@ export function DigitalTwinPage() {
 
         <div className="rounded-xl border border-ink-700 bg-ink-850 p-3.5 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Road Defects</span>
+            <span className="text-xs font-semibold text-slate-300">Road Defects</span>
             <AlertTriangle className="h-4 w-4 text-amber-400" />
           </div>
           <p className="mt-2 text-xl font-bold tabular-nums text-slate-100">{summary.active_defects}</p>

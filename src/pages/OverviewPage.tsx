@@ -166,7 +166,8 @@ export function OverviewPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-6">
         <StatCard
-          label="Active Buses"
+          label="Fleet Buses (Network)"
+          subtitle="Active / Total Registered"
           value={stats.activeBuses}
           total={stats.totalBuses}
           icon={BusIcon}
@@ -178,6 +179,7 @@ export function OverviewPage() {
         />
         <StatCard
           label="Events Detected Today"
+          subtitle="AI Edge Vision Detections"
           value={stats.eventsDetected}
           icon={Radar}
           iconColor="text-accent-400"
@@ -188,6 +190,7 @@ export function OverviewPage() {
         />
         <StatCard
           label="Road Defects"
+          subtitle="Active Surface Defects"
           value={stats.roadDefects}
           icon={CircleAlert}
           iconColor="text-amber-400"
@@ -198,6 +201,7 @@ export function OverviewPage() {
         />
         <StatCard
           label="Traffic Congestion"
+          subtitle="Monitored Corridor Zones"
           value={stats.trafficCongestion}
           icon={TrafficCone}
           iconColor="text-orange-400"
@@ -207,7 +211,8 @@ export function OverviewPage() {
           onClick={() => navigate('/traffic')}
         />
         <StatCard
-          label="Active Incidents"
+          label="Active Incidents (Fleet Log)"
+          subtitle="30-Day Cumulative Log"
           value={stats.activeIncidents}
           total={stats.totalIncidents}
           icon={Siren}
@@ -219,6 +224,7 @@ export function OverviewPage() {
         />
         <StatCard
           label="Camera Feeds"
+          subtitle="Edge Video Streams"
           value={stats.cameraFeeds}
           icon={Camera}
           iconColor="text-teal-400"

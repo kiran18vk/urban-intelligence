@@ -207,15 +207,16 @@ export function IncidentsPage() {
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          { label: 'Total Incidents', value: incidents.length, color: 'text-rose-400' },
-          { label: 'New / Unreviewed', value: incidents.filter((i) => i.status === 'NEW').length, color: 'text-rose-400' },
-          { label: 'Under Review', value: incidents.filter((i) => i.status === 'REVIEW').length, color: 'text-amber-400' },
-          { label: 'Actioned / Closed', value: incidents.filter((i) => i.status === 'ACTIONED' || i.status === 'CLOSED').length, color: 'text-emerald-400' },
-          { label: 'Suspect Hit & Run', value: incidents.filter((i) => i.incident_type === 'HIT_AND_RUN_SUSPECT').length, color: 'text-purple-400' },
+          { label: 'Active Corridor Queue', sub: 'Current Testbed Incidents', value: incidents.length, color: 'text-rose-400' },
+          { label: 'New / Unreviewed', sub: 'Awaiting Operator Review', value: incidents.filter((i) => i.status === 'NEW').length, color: 'text-rose-400' },
+          { label: 'Under Review', sub: 'Operator Verification', value: incidents.filter((i) => i.status === 'REVIEW').length, color: 'text-amber-400' },
+          { label: 'Actioned / Closed', sub: 'Dispatched to Authority', value: incidents.filter((i) => i.status === 'ACTIONED' || i.status === 'CLOSED').length, color: 'text-emerald-400' },
+          { label: 'Suspect Hit & Run', sub: 'ANPR Track Associated', value: incidents.filter((i) => i.incident_type === 'HIT_AND_RUN_SUSPECT').length, color: 'text-purple-400' },
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border border-ink-700 bg-ink-850 p-3.5 shadow-sm">
             <p className={`text-2xl font-bold tabular font-mono ${stat.color}`}>{stat.value}</p>
-            <p className="mt-0.5 text-xs text-slate-400">{stat.label}</p>
+            <p className="mt-0.5 text-xs font-semibold text-slate-300">{stat.label}</p>
+            <p className="text-[10px] text-slate-500">{stat.sub}</p>
           </div>
         ))}
       </div>

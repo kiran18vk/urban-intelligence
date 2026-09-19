@@ -12,6 +12,7 @@ from ai.traffic.config import (
     CLASS_COLORS_BGR, DEFAULT_COLOR_BGR,
     HUD_LINE_COLOR_BGR, HUD_INCOMING_COLOR_BGR, HUD_OUTGOING_COLOR_BGR,
     ANNOTATION_BOX_THICKNESS, ANNOTATION_FONT_SCALE, ANNOTATION_FONT_THICKNESS,
+    DISPLAY_CONFIDENCE_THRESHOLD,
 )
 from ai.traffic.models import DensityResult, DirectionalCounts, TrackedObject
 
@@ -41,6 +42,9 @@ def annotate_frame(
 
     # ── Per-track annotations ─────────────────────────────────────────────────
     for track in active_tracks:
+        # Suppress low-confidence tracks for clean visual overlay (DISPLAY_CONFIDENCE_THRESHOLD = 0.40)
+        if track.confidence < DISPLAY_CONFIDENCE_THRESHOLD:
+            continue
         color = CLASS_COLORS_BGR.get(track.class_name, DEFAULT_COLOR_BGR)
         x1, y1, x2, y2 = [int(v) for v in track.bbox]
 

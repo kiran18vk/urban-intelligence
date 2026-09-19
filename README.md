@@ -54,7 +54,8 @@ Urban Digital Twin & Corridor GIS Analytics
 To ensure absolute technical transparency for judges and evaluators, all capabilities are classified into three distinct categories:
 
 ### A. IMPLEMENTED (Active Algorithmic Code & Production APIs)
-1. **Edge AI Perception Pipeline**: Multi-task inference for traffic object detection, lane tracking, ANPR OCR syntax validation, and road damage bounding boxes.
+1. **Live Monitor & Edge AI Perception Pipeline**: Real-time multi-task inference for traffic object detection, lane tracking, ANPR OCR syntax validation, and road damage bounding boxes.
+   > **Architecture Note**: Edge AI processes video on the bus. The central platform receives lightweight AI events, metadata, reliability scores, and selective evidence — not continuous raw video.
 2. **Reliability Calibration Layer**: Operational confidence weighting that discounts raw detection confidence based on environmental and optical degradation factors.
 3. **Offline Store-and-Forward Edge Queue**: SQLite persistent buffer guaranteeing zero data loss during simulated edge connectivity blackouts with automatic synchronization on link restoration.
 4. **Multi-Bus Event Correlation Engine**: Spatio-temporal clustering (DBSCAN + spatial hashing) correlating observations across overlapping transit corridors to eliminate false positives.

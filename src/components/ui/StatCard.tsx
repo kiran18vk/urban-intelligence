@@ -4,6 +4,7 @@ interface StatCardProps {
   label: string;
   value: number | string;
   total?: number;
+  subtitle?: string;
   icon: LucideIcon;
   iconColor: string;
   iconBg: string;
@@ -12,7 +13,7 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-export function StatCard({ label, value, total, icon: Icon, iconColor, iconBg, trend, sparkline, onClick }: StatCardProps) {
+export function StatCard({ label, value, total, subtitle, icon: Icon, iconColor, iconBg, trend, sparkline, onClick }: StatCardProps) {
   const trendColor =
     trend?.direction === 'up' ? 'text-emerald-400' : trend?.direction === 'down' ? 'text-rose-400' : 'text-slate-400';
 
@@ -38,7 +39,8 @@ export function StatCard({ label, value, total, icon: Icon, iconColor, iconBg, t
           {value}
           {total !== undefined && <span className="text-base font-normal text-slate-500"> / {total}</span>}
         </p>
-        <p className="mt-1 text-sm text-slate-400">{label}</p>
+        <p className="mt-1 text-sm font-medium text-slate-300">{label}</p>
+        {subtitle && <p className="text-[11px] text-slate-500">{subtitle}</p>}
       </div>
       {sparkline && sparkline.length > 0 && (
         <div className="mt-3 flex h-8 items-end gap-0.5">

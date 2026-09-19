@@ -20,8 +20,9 @@ VEHICLE_CLASSES: List[str] = [
     "car", "motorcycle", "bicycle", "bus", "truck", "person"
 ]
 
-# ─── Tracker ──────────────────────────────────────────────────────────────────
+# ─── Tracker & Display Thresholds ─────────────────────────────────────────────
 DEFAULT_CONFIDENCE_THRESHOLD: float = 0.25
+DISPLAY_CONFIDENCE_THRESHOLD: float = 0.40  # Display suppression threshold to filter low-confidence visual artefacts
 DEFAULT_IMG_SIZE: int = 640
 DEFAULT_DEVICE: str = "cpu"
 
