@@ -30,6 +30,44 @@ import { apiService } from '@/services/api';
 import { mockLiveMonitorStatus } from '@/data/mockData';
 import type { LiveMonitorStatus } from '@/types';
 
+// Robust helper functions to guarantee safe numeric extraction from primitives or dictionaries
+const getReliabilityScore = (rel: any): number => {
+  if (rel == null) return 0.88;
+  if (typeof rel === 'number') return rel;
+  if (typeof rel === 'object') {
+    if (typeof rel.score === 'number') return rel.score;
+    if (typeof rel.overall_score === 'number') return rel.overall_score;
+  }
+  return 0.88;
+};
+
+const getConfidenceScore = (conf: any): number => {
+  if (conf == null) return 0.88;
+  if (typeof conf === 'number') return conf;
+  if (typeof conf === 'object') {
+    if (typeof conf.score === 'number') return conf.score;
+    if (typeof conf.confidence === 'number') return conf.confidence;
+    if (typeof conf.raw_confidence === 'number') return conf.raw_confidence;
+  }
+  return 0.88;
+};
+
+const getOperationalConfidence = (rel: any): number => {
+  if (rel == null) return 0.81;
+  if (typeof rel === 'number') return rel;
+  if (typeof rel === 'object') {
+    if (typeof rel.operational_confidence === 'number') return rel.operational_confidence;
+  }
+  return 0.81;
+};
+
+const getSeverityString = (sev: any): string => {
+  if (!sev) return 'NORMAL';
+  if (typeof sev === 'string') return sev;
+  if (typeof sev === 'object' && sev.level) return String(sev.level);
+  return 'NORMAL';
+};
+
 export const LiveMonitorPage: React.FC = () => {
   // Initialize with fallback testbed data to guarantee zero blank-screen renders
   const [data, setData] = useState<LiveMonitorStatus>(mockLiveMonitorStatus);
@@ -260,10 +298,10 @@ export const LiveMonitorPage: React.FC = () => {
             <ShieldCheck className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="text-base font-bold text-cyan-400">
-            {Math.round((currentObs?.reliability?.overall_score ?? 0.88) * 100)}% RELIABILITY
+            {Math.round(getReliabilityScore(currentObs?.reliability) * 100)}% RELIABILITY
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            Op. Conf: {(currentObs?.reliability?.operational_confidence ?? 0.81).toFixed(2)}
+            Op. Conf: {getOperationalConfidence(currentObs?.reliability).toFixed(2)}
           </div>
         </div>
 
@@ -528,8 +566,8 @@ export const LiveMonitorPage: React.FC = () => {
                     <div key={idx} className="flex items-center justify-between text-[11px] bg-background/50 p-1.5 rounded border border-border/50">
                       <span className="font-mono text-foreground">{obs.type}</span>
                       <div className="flex items-center gap-2 font-mono text-muted-foreground">
-                        <span>Conf: {obs.confidence}</span>
-                        <span className="text-cyan-400">Rel: {obs.reliability}</span>
+                        <span>Conf: {getConfidenceScore(obs.confidence).toFixed(2)}</span>
+                        <span className="text-cyan-400">Rel: {getReliabilityScore(obs.reliability).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
@@ -569,7 +607,7 @@ export const LiveMonitorPage: React.FC = () => {
                   Observation Reliability
                 </span>
                 <span className="font-mono font-bold text-cyan-400 text-xs">
-                  {Math.round((currentObs?.reliability?.overall_score ?? 0.88) * 100)}%
+                  {Math.round(getReliabilityScore(currentObs?.reliability) * 100)}%
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] font-mono text-muted-foreground">
@@ -579,9 +617,9 @@ export const LiveMonitorPage: React.FC = () => {
                 <div>Temporal Stability: <span className="text-foreground">86%</span></div>
               </div>
               <div className="flex items-center justify-between text-[11px] font-mono border-t border-border/60 pt-1.5 text-muted-foreground">
-                <span>Raw Conf: {currentObs?.reliability?.raw_confidence ?? 0.92}</span>
+                <span>Raw Conf: {getConfidenceScore(currentObs?.reliability?.raw_confidence ?? 0.92).toFixed(2)}</span>
                 <span className="text-primary">
-                  Operational Conf: {currentObs?.reliability?.operational_confidence ?? 0.81}
+                  Operational Conf: {getOperationalConfidence(currentObs?.reliability).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -694,9 +732,11 @@ export const LiveMonitorPage: React.FC = () => {
             <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
               {latestEvents.length > 0 ? (
                 latestEvents.slice(0, 8).map((evt) => {
-                  const isPothole = evt.event_type.includes('POTHOLE') || evt.event_type.includes('CRACK') || evt.event_type.includes('ROAD');
-                  const isPed = evt.event_type.includes('PEDESTRIAN');
-                  const isIncident = evt.event_type.includes('INCIDENT') || evt.event_type.includes('HIT_AND_RUN');
+                  const eventTypeStr = typeof evt.event_type === 'string' ? evt.event_type : 'EVENT';
+                  const isPothole = eventTypeStr.includes('POTHOLE') || eventTypeStr.includes('CRACK') || eventTypeStr.includes('ROAD');
+                  const isPed = eventTypeStr.includes('PEDESTRIAN');
+                  const isIncident = eventTypeStr.includes('INCIDENT') || eventTypeStr.includes('HIT_AND_RUN');
+                  const severityText = getSeverityString(evt.severity);
 
                   return (
                     <div
@@ -705,17 +745,17 @@ export const LiveMonitorPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-foreground">{evt.event_type}</span>
+                          <span className="font-mono font-bold text-foreground">{eventTypeStr}</span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              evt.severity === 'CRITICAL'
+                              severityText === 'CRITICAL'
                                 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                                : evt.severity === 'HIGH'
+                                : severityText === 'HIGH'
                                 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
                                 : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
                             }`}
                           >
-                            {evt.severity}
+                            {severityText}
                           </span>
                         </div>
                         <span className="font-mono text-[11px] text-muted-foreground">
@@ -727,8 +767,8 @@ export const LiveMonitorPage: React.FC = () => {
 
                       <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
                         <span>Bus: {evt.bus_id}</span>
-                        <span>Conf: {evt.confidence}</span>
-                        <span className="text-cyan-400">Rel: {evt.reliability}</span>
+                        <span>Conf: {getConfidenceScore(evt.confidence).toFixed(2)}</span>
+                        <span className="text-cyan-400">Rel: {getReliabilityScore(evt.reliability).toFixed(2)}</span>
                       </div>
 
                       {/* Action Links into existing system modules */}
