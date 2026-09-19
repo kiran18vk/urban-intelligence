@@ -21,8 +21,10 @@ import {
   Activity,
   UserCheck,
   ShieldAlert,
+  ZoomIn,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { ImageLightboxModal } from '@/components/ui/ImageLightboxModal';
 import type {
   ReviewRecord,
   ReviewSummary,
@@ -57,6 +59,40 @@ export const ReviewCenterPage: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+    attribution?: string;
+  } | null>(null);
+
+  const getEvidenceAssetForReview = (review: ReviewRecord): string | null => {
+    const type = review.original_event_type?.toUpperCase() || '';
+    if (type === 'HIT_AND_RUN') {
+      if (
+        review.target_id?.toUpperCase().includes('COLLISION') ||
+        review.target_id?.includes('0002') ||
+        review.evidence_reference?.includes('collision')
+      ) {
+        return '/assets/incidents/vehicle-collision-real-01.jpg';
+      }
+      return '/assets/incidents/road-incident-real-01.jpg';
+    }
+    if (type === 'ROAD_POTHOLE') {
+      return '/assets/road-defects/pothole-real-01.jpg';
+    }
+    if (type === 'ROAD_CRACK') {
+      return '/assets/road-defects/road-crack-real-01.jpg';
+    }
+    if (review.evidence_reference && review.evidence_reference.trim().length > 0) {
+      const ref = review.evidence_reference.trim().toLowerCase();
+      if (ref.includes('pothole')) return '/assets/road-defects/pothole-real-01.jpg';
+      if (ref.includes('crack')) return '/assets/road-defects/road-crack-real-01.jpg';
+      if (ref.includes('collision')) return '/assets/incidents/vehicle-collision-real-01.jpg';
+      if (ref.includes('incident') || ref.includes('hit-and-run')) return '/assets/incidents/road-incident-real-01.jpg';
+    }
+    return null;
+  };
 
   const fetchData = async () => {
     try {
@@ -848,28 +884,88 @@ export const ReviewCenterPage: React.FC = () => {
               </div>
 
               {/* Evidence Section */}
-              <div className="pt-2">
-                <div className="text-[11px] text-slate-500 mb-1 flex items-center gap-1">
-                  <Camera className="h-3 w-3 text-slate-400" />
-                  Evidence Reference:
-                </div>
-                {selectedReview.evidence_reference ? (
-                  <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-900 max-h-48 flex items-center justify-center">
-                    <img
-                      src={`/${selectedReview.evidence_reference.replace(/^\/+/, '')}`}
-                      alt="Defect evidence"
-                      className="object-cover w-full h-44"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
+              {(() => {
+                const evidenceUrl = getEvidenceAssetForReview(selectedReview);
+                return (
+                  <div className="pt-2">
+                    <div className="text-[11px] text-slate-400 mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                        <Camera className="h-3.5 w-3.5 text-indigo-400" />
+                        Evidence Reference:
+                      </span>
+                      {evidenceUrl ? (
+                        <span className="rounded bg-sky-500/15 border border-sky-500/30 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
+                          VISUAL REFERENCE
+                        </span>
+                      ) : (
+                        <span className="rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
+                          METADATA ONLY
+                        </span>
+                      )}
+                    </div>
+
+                    {evidenceUrl ? (
+                      <div className="rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 p-3 space-y-2.5">
+                        <div
+                          className="relative group cursor-pointer rounded-lg overflow-hidden border border-slate-800 bg-black max-h-52 flex items-center justify-center shadow-inner"
+                          onClick={() =>
+                            setPreviewImage({
+                              url: evidenceUrl,
+                              title: `${selectedReview.original_event_type} (${selectedReview.target_id})`,
+                              subtitle: `Source Bus: ${selectedReview.source_bus_id || 'Transit Fleet'} • Confidence: ${(selectedReview.original_confidence * 100).toFixed(0)}% • Reliability: ${(selectedReview.original_reliability * 100).toFixed(0)}%`,
+                              attribution: 'Reference image — not a live bus-camera capture or legal evidence.',
+                            })
+                          }
+                        >
+                          <img
+                            src={evidenceUrl}
+                            alt={`Visual reference for ${selectedReview.original_event_type}`}
+                            className="object-cover w-full h-44 group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-xs text-white font-medium backdrop-blur-[1px]">
+                            <ZoomIn className="h-4 w-4 text-indigo-300" />
+                            <span>Click to enlarge full resolution</span>
+                          </div>
+                        </div>
+
+                        {/* Visual Reference Details */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] border-t border-slate-900">
+                          <div>
+                            <span className="text-slate-500 block">Event Type:</span>
+                            <span className="text-slate-200 font-semibold">{selectedReview.original_event_type}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block">Source Bus:</span>
+                            <span className="text-indigo-300 font-mono font-medium">{selectedReview.source_bus_id || 'FLEET'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block">Raw AI / Op Conf:</span>
+                            <span className="text-blue-300 font-medium">
+                              {(selectedReview.original_confidence * 100).toFixed(0)}% / {(selectedReview.original_operational_confidence * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block">Reliability Score:</span>
+                            <span className="text-emerald-400 font-medium">
+                              {(selectedReview.original_reliability * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Honesty Disclosure */}
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-900/80 px-2.5 py-1.5 rounded-md border border-slate-800">
+                          <Info className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+                          <span>Reference image — not a live bus-camera capture or legal evidence.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-900/60 rounded-lg text-xs text-slate-400 italic border border-dashed border-slate-800">
+                        Evidence reference unavailable (metadata only)
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="p-3 bg-slate-900/60 rounded-lg text-xs text-slate-400 italic border border-dashed border-slate-800">
-                    EVIDENCE REFERENCE UNAVAILABLE (Metadata only)
-                  </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
 
             {/* Correlation context if available */}
@@ -1061,6 +1157,19 @@ export const ReviewCenterPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {previewImage && (
+        <ImageLightboxModal
+          isOpen={!!previewImage}
+          onClose={() => setPreviewImage(null)}
+          imageUrl={previewImage.url}
+          title={previewImage.title}
+          subtitle={previewImage.subtitle}
+          attribution={previewImage.attribution}
+          tag="Visual Reference"
+        />
       )}
     </div>
   );

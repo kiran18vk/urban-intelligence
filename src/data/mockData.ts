@@ -2047,7 +2047,7 @@ export const mockReviewQueue: import('@/types').ReviewRecord[] = [
     reviewed_at: null,
     created_at: new Date(Date.now() - 1800 * 1000).toISOString(),
     status: 'IN_REVIEW',
-    evidence_reference: 'assets/incidents/hit-and-run-ref-01.jpg',
+    evidence_reference: 'assets/incidents/road-incident-real-01.jpg',
     source_bus_id: 'PMP-BUS-001',
     is_simulated: true,
     priority_score: 98.0,
