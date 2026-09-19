@@ -160,7 +160,7 @@ class IncidentBuilder:
             persistence_frames=16,
             metadata={"is_demo": True},
         )
-        return self.build_from_trigger(
+        rec = self.build_from_trigger(
             trigger=trigger,
             bus_id=bus_id,
             camera_id=camera_id,
@@ -174,3 +174,8 @@ class IncidentBuilder:
             is_demo=True,
             incident_id=incident_id,
         )
+        rec.notes = (
+            "Potential road incident detected. Sudden post-interaction trajectory deviation and rapid track disappearance. "
+            "Requires human review. (Simulated GPS, OCR format validation only, no RTO registry check)"
+        )
+        return rec

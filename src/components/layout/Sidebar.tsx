@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Video,
+  Layers,
   Map,
   TrafficCone,
   CircleAlert,
@@ -8,6 +10,12 @@ import {
   BarChart3,
   Boxes,
   Radar,
+  Users,
+  HardDrive,
+  ClipboardCheck,
+  ShieldAlert,
+  RotateCcw,
+  Sparkles,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -21,12 +29,20 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Overview', icon: LayoutDashboard },
+  { to: '/predictive', label: 'Predictive Intel', icon: Sparkles, badge: 6 },
+  { to: '/authority-actions', label: 'Action Center', icon: ShieldAlert, badge: 5 },
+  { to: '/reobservation', label: 'Re-Observation', icon: RotateCcw, badge: 6 },
+  { to: '/review-center', label: 'Review Center', icon: ClipboardCheck },
+  { to: '/live-monitor', label: 'Live Monitor', icon: Video },
+  { to: '/event-correlation', label: 'Event Correlation', icon: Layers },
   { to: '/map', label: 'Live GIS Map', icon: Map },
+  { to: '/pedestrian-safety', label: 'Pedestrian Safety', icon: Users, badge: 4 },
   { to: '/traffic', label: 'Traffic Intelligence', icon: TrafficCone, badge: 14 },
   { to: '/defects', label: 'Road Defects', icon: CircleAlert, badge: 24 },
   { to: '/incidents', label: 'Incident Response', icon: Siren, badge: 8 },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/digital-twin', label: 'Urban Digital Twin', icon: Boxes },
+  { to: '/edge-queue', label: 'Edge Queue', icon: HardDrive },
 ];
 
 interface SidebarProps {

@@ -50,14 +50,18 @@ class DigitalTwinSimulator:
         parameters = parameters or {}
         scenario_type_upper = scenario_type.upper()
 
-        if scenario_type_upper == "ROAD_DEFECT":
+        if scenario_type_upper in ("ROAD_DEFECT", "DEFECT"):
             return self._simulate_road_defect(target_id, parameters)
         elif scenario_type_upper in ("CONGESTION_SURGE", "CONGESTION"):
             return self._simulate_congestion_surge(target_id, parameters)
-        elif scenario_type_upper in ("ROAD_CLOSURE", "CLOSURE"):
+        elif scenario_type_upper in ("ROAD_CLOSURE", "CLOSURE", "OBSTRUCTION"):
             return self._simulate_road_closure(target_id, parameters)
+        elif scenario_type_upper in ("MAINTENANCE_INTERVENTION", "MAINTENANCE", "REPAIR"):
+            return self._simulate_maintenance_intervention(target_id, parameters)
+        elif scenario_type_upper in ("DEFECT_ESCALATION", "ROAD_DEFECT_ESCALATION", "ESCALATION"):
+            return self._simulate_defect_escalation(target_id, parameters)
         else:
-            raise ValueError(f"Unknown scenario type: '{scenario_type}'. Supported: ROAD_DEFECT, CONGESTION_SURGE, ROAD_CLOSURE")
+            raise ValueError(f"Unknown scenario type: '{scenario_type}'. Supported: ROAD_DEFECT, CONGESTION_SURGE, ROAD_CLOSURE, MAINTENANCE_INTERVENTION, DEFECT_ESCALATION")
 
     def _simulate_road_defect(self, road_id: str, params: Dict[str, Any]) -> SimulationResult:
         road = self.state_engine.roads.get(road_id)
@@ -195,6 +199,107 @@ class DigitalTwinSimulator:
                 "status_change": "OPEN -> CLOSED (Detour)",
                 "transit_time_penalty_min": detour_delay_min,
                 "transit_time_penalty_pct": round((detour_multiplier - 1.0) * 100, 1),
+            },
+            formula_used=formula,
+        )
+
+    def _simulate_maintenance_intervention(self, road_id: str, params: Dict[str, Any]) -> SimulationResult:
+        road = self.state_engine.roads.get(road_id)
+        road_name = road.name if road else f"Road Segment {road_id}"
+        baseline_defects = road.defect_count if road else 2
+        baseline_condition = road.condition_state if road else ConditionState.GOOD.value
+        baseline_priority = getattr(road, "priority_score", 65)
+        baseline_deterioration = getattr(road, "deterioration_index", 5.2)
+
+        defects_repaired = int(params.get("defects_to_repair", baseline_defects))
+        simulated_defects = max(0, baseline_defects - defects_repaired)
+        sim_condition = ConditionState.EXCELLENT.value if simulated_defects == 0 else ConditionState.GOOD.value
+        sim_priority = max(10, baseline_priority - (defects_repaired * 22))
+        sim_deterioration = max(1.0, round(baseline_deterioration - (defects_repaired * 1.8), 1))
+        estimated_expenditure_inr = defects_repaired * int(params.get("unit_cost_inr", 12500))
+
+        formula = "sim_priority = max(10, baseline_priority - (defects_repaired * 22)); expenditure = defects_repaired * unit_cost"
+
+        return SimulationResult(
+            scenario_type="MAINTENANCE_INTERVENTION",
+            target_id=road_id,
+            target_name=road_name,
+            baseline_metrics={
+                "defect_count": baseline_defects,
+                "condition_state": baseline_condition,
+                "priority_score": baseline_priority,
+                "deterioration_index": baseline_deterioration,
+            },
+            simulated_metrics={
+                "defect_count": simulated_defects,
+                "condition_state": sim_condition,
+                "priority_score": sim_priority,
+                "deterioration_index": sim_deterioration,
+                "projected_repair_expenditure_inr": estimated_expenditure_inr,
+                "serviceability_gain_pct": round(min(60.0, defects_repaired * 15.0), 1),
+            },
+            impact_summary=(
+                f"Executing immediate maintenance on {defects_repaired} defects restores {road_name} "
+                f"to {sim_condition}, drops priority score to {sim_priority}/100, and reduces deterioration index to {sim_deterioration}/10."
+            ),
+            delta={
+                "defect_reduction": defects_repaired,
+                "condition_improvement": f"{baseline_condition} -> {sim_condition}",
+                "priority_reduction": baseline_priority - sim_priority,
+                "projected_cost_inr": estimated_expenditure_inr,
+            },
+            formula_used=formula,
+        )
+
+    def _simulate_defect_escalation(self, road_id: str, params: Dict[str, Any]) -> SimulationResult:
+        road = self.state_engine.roads.get(road_id)
+        road_name = road.name if road else f"Road Segment {road_id}"
+        baseline_defects = road.defect_count if road else 2
+        baseline_condition = road.condition_state if road else ConditionState.GOOD.value
+        baseline_priority = getattr(road, "priority_score", 58)
+        baseline_deterioration = getattr(road, "deterioration_index", 4.5)
+        baseline_cost = getattr(road, "estimated_cost_inr", 28000)
+
+        escalation_days = int(params.get("delay_days", 60))
+        multiplier = 1.65 if escalation_days >= 60 else 1.35
+        simulated_defects = baseline_defects + (3 if escalation_days >= 60 else 1)
+        sim_condition = ConditionState.CRITICAL.value if simulated_defects >= 4 else ConditionState.DEGRADED.value
+        sim_priority = min(100, baseline_priority + (28 if escalation_days >= 60 else 16))
+        sim_deterioration = min(10.0, round(baseline_deterioration + (3.4 if escalation_days >= 60 else 1.8), 1))
+        simulated_cost = int(baseline_cost * multiplier)
+
+        formula = "escalated_cost = baseline_cost * (1.65 if days>=60 else 1.35); sim_deterioration = min(10.0, baseline + delta)"
+
+        return SimulationResult(
+            scenario_type="DEFECT_ESCALATION",
+            target_id=road_id,
+            target_name=road_name,
+            baseline_metrics={
+                "delay_days": 0,
+                "defect_count": baseline_defects,
+                "condition_state": baseline_condition,
+                "priority_score": baseline_priority,
+                "deterioration_index": baseline_deterioration,
+                "estimated_repair_cost_inr": baseline_cost,
+            },
+            simulated_metrics={
+                "delay_days": escalation_days,
+                "defect_count": simulated_defects,
+                "condition_state": sim_condition,
+                "priority_score": sim_priority,
+                "deterioration_index": sim_deterioration,
+                "escalated_repair_cost_inr": simulated_cost,
+                "cost_penalty_pct": round((multiplier - 1.0) * 100, 1),
+            },
+            impact_summary=(
+                f"Delaying road maintenance by {escalation_days} days causes defect escalation to {sim_condition}, "
+                f"driving repair costs up by +{round((multiplier - 1.0) * 100)}% (₹{simulated_cost - baseline_cost:,} INR escalation penalty)."
+            ),
+            delta={
+                "condition_degradation": f"{baseline_condition} -> {sim_condition}",
+                "priority_spike": sim_priority - baseline_priority,
+                "cost_escalation_inr": simulated_cost - baseline_cost,
+                "cost_escalation_pct": round((multiplier - 1.0) * 100, 1),
             },
             formula_used=formula,
         )

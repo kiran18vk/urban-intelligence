@@ -176,6 +176,24 @@ class TestDigitalTwinSimulator(unittest.TestCase):
         self.assertIn("transit_time_penalty_min", res.delta)
         self.assertEqual(res.simulated_metrics["status"], "CLOSED_DETOUR_ACTIVE")
 
+    def test_maintenance_intervention_simulation(self):
+        res = self.simulator.simulate_scenario(
+            "MAINTENANCE_INTERVENTION", "ROAD-02", {"defects_to_repair": 2, "unit_cost_inr": 12500}
+        )
+        self.assertEqual(res.scenario_type, "MAINTENANCE_INTERVENTION")
+        self.assertIn("defect_reduction", res.delta)
+        self.assertEqual(res.delta["defect_reduction"], 2)
+        self.assertIn("projected_cost_inr", res.delta)
+        self.assertEqual(res.delta["projected_cost_inr"], 25000)
+
+    def test_defect_escalation_simulation(self):
+        res = self.simulator.simulate_scenario(
+            "DEFECT_ESCALATION", "ROAD-04", {"delay_days": 60}
+        )
+        self.assertEqual(res.scenario_type, "DEFECT_ESCALATION")
+        self.assertIn("cost_escalation_pct", res.delta)
+        self.assertEqual(res.delta["cost_escalation_pct"], 65.0)
+
     def test_invalid_scenario_type_raises(self):
         with self.assertRaises(ValueError):
             self.simulator.simulate_scenario("INVALID_TYPE", "ROAD-01")

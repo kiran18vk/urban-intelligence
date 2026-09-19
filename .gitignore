@@ -61,6 +61,11 @@ htmlcov/
 *.sln
 *.sw?
 
+# SQLite databases (generated at runtime)
+*.db
+*.sqlite
+*.sqlite3
+
 # Explicitly ensure src/lib is never ignored
 !src/lib/
 !src/lib/**

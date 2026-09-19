@@ -51,7 +51,7 @@ _sync_with_urban_events()
 
 
 class SimulateRequest(BaseModel):
-    scenario_type: str = Field(..., description="Scenario type: ROAD_DEFECT, CONGESTION_SURGE, ROAD_CLOSURE")
+    scenario_type: str = Field(..., description="Scenario type: ROAD_DEFECT, CONGESTION_SURGE, ROAD_CLOSURE, MAINTENANCE_INTERVENTION, DEFECT_ESCALATION")
     target_id: str = Field(..., description="Target entity ID (e.g. ROAD-01, ZONE-02)")
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Scenario parameters")
 

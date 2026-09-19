@@ -142,7 +142,7 @@ EVENTS: List[Dict[str, Any]] = [
 ]
 
 DEFECT_TYPES = ["pothole", "crack", "waterlogging", "sinkhole", "surface_raveling"]
-DEFECT_STATUSES = ["detected", "verified", "scheduled", "repaired"]
+DEFECT_STATUSES = ["detected", "verified", "prioritized", "repair_action", "re_observed", "resolved"]
 SIZES = ["30cm", "45cm", "60cm", "80cm", "1.2m"]
 
 DEFECTS: List[Dict[str, Any]] = [
@@ -161,7 +161,41 @@ DEFECTS: List[Dict[str, Any]] = [
         "status": DEFECT_STATUSES[i % len(DEFECT_STATUSES)],
         "sizeEstimate": SIZES[i % len(SIZES)],
         "repairCost": 5000 + (i * 2500) % 40000,
+        "costRangeMin": int((5000 + (i * 2500) % 40000) * 0.85),
+        "costRangeMax": int((5000 + (i * 2500) % 40000) * 1.25),
         "reports": 1 + (i % 6),
+        "maintenancePriority": {
+            "score": min(100, max(20, 35 + (i * 11) % 65)),
+            "classification": ["Low Priority", "Medium Priority", "High Priority", "Critical Priority"][i % 4],
+            "defectSeverityScore": [35, 55, 75, 95][(i * 2) % 4],
+            "trafficLoad": 75 + (i * 3) % 20,
+            "recurrenceScore": min(100, 30 + (1 + (i % 6)) * 14),
+            "roadImportanceScore": 75 + (i * 4) % 25,
+            "explanation": f"Score {min(100, max(20, 35 + (i * 11) % 65))}/100 computed from Severity, Density, Traffic Load, and Recurrence.",
+        },
+        "deteriorationIndex": {
+            "index": round(min(10.0, 1.5 + (i * 1.3) % 8.5), 1),
+            "currentCondition": ["Minor Wear", "Moderate Distress", "Severe Degradation", "Critical Failure"][i % 4],
+            "previousCondition": "Fair Condition",
+            "deteriorationRatePct": round(3.5 + (i * 2.8) % 25.0, 1),
+            "trend": ["STABLE", "SLOWLY_DETERIORATING", "RAPIDLY_DETERIORATING", "IMPROVING"][i % 4],
+            "preventiveIndication": "Preventive surface patching and periodic re-observation.",
+            "observationHistoryCount": 1 + (i % 6),
+            "isDecisionSupportOnly": True,
+        },
+        "costEstimate": {
+            "affectedLengthMeters": 2.0 + (i % 5) * 1.5,
+            "affectedAreaSqM": 3.0 + (i % 6) * 2.0,
+            "repairCategory": ["Minor Patch", "Crack Seal", "Moderate Repair", "Major Overlay"][i % 4],
+            "estimatedQuantity": f"{3.0 + (i % 6) * 2.0} m² Bituminous Cold Patching",
+            "estimatedCostINR": 5000 + (i * 2500) % 40000,
+            "costRangeMinINR": int((5000 + (i * 2500) % 40000) * 0.85),
+            "costRangeMaxINR": int((5000 + (i * 2500) % 40000) * 1.25),
+            "unitRateINR": 2800,
+            "potholePatchRatePerSqM": 2800,
+            "crackSealRatePerM": 650,
+            "disclaimer": "Prototype estimate — planning support only",
+        },
     }
     for i in range(24)
 ]

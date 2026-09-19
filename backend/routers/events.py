@@ -8,6 +8,7 @@ Exposes:
 """
 
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -58,7 +59,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=120,
-            notes="[DEMO SEED] Deterministic simulation sample event (Road Defect)",
+            notes="Deterministic simulation sample event (Road Defect)",
         ),
         UrbanEvent(
             event_id="EVT-DEMO-0002",
@@ -82,7 +83,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=240,
-            notes="[DEMO SEED] Deterministic simulation sample event (Surface Distress)",
+            notes="Deterministic simulation sample event (Surface Distress)",
         ),
         UrbanEvent(
             event_id="EVT-DEMO-0003",
@@ -106,7 +107,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=450,
-            notes="[DEMO SEED] Deterministic simulation sample event (Traffic Density)",
+            notes="Deterministic simulation sample event (Traffic Density)",
         ),
         UrbanEvent(
             event_id="EVT-DEMO-0004",
@@ -130,7 +131,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=610,
-            notes="[DEMO SEED] Simulated synthetic OCR plate recognition",
+            notes="Simulated synthetic OCR plate recognition",
         ),
         UrbanEvent(
             event_id="EVT-DEMO-0005",
@@ -154,7 +155,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=800,
-            notes="[DEMO SEED] Multi-object tracking active record",
+            notes="Multi-object tracking active record",
         ),
         UrbanEvent(
             event_id="EVT-DEMO-0006",
@@ -178,7 +179,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=980,
-            notes="[DEMO SEED] Simulated pedestrian proximity alert",
+            notes="Simulated pedestrian proximity alert",
         ),
         UrbanEvent(
             event_id="EVT-DEMO-0007",
@@ -202,7 +203,7 @@ def _seed_demo_urban_events():
                 "is_measured": True,
             },
             frame_index=1200,
-            notes="[DEMO SCHEMA ONLY - NO LIVE INCIDENT] Hit-and-run schema event definition",
+            notes="Simulated hit-and-run schema event definition",
         ),
     ]
     for r in demo_records:
@@ -334,6 +335,42 @@ def create_event_from_detection(req: CreateEventFromDetectionRequest):
         )
 
     event_dict = urban_event.to_dict()
+
+    # Edge Store-and-Forward Integration
+    try:
+        try:
+            from routers.edge_queue import edge_connectivity, edge_queue_store
+        except ImportError:
+            from backend.routers.edge_queue import edge_connectivity, edge_queue_store
+        from ai.offline_queue.models import ConnectivityState, QueuedEvent, QueueStatus
+
+        is_offline = not edge_connectivity.is_online()
+        queued_item = QueuedEvent(
+            event_id=urban_event.event_id,
+            event_type=urban_event.event_type,
+            bus_id=urban_event.bus_id,
+            camera_id=urban_event.camera_id,
+            timestamp=time.time(),
+            latitude=urban_event.gps.latitude,
+            longitude=urban_event.gps.longitude,
+            confidence=urban_event.confidence,
+            operational_confidence=urban_event.operational_confidence,
+            reliability=urban_event.reliability,
+            severity=urban_event.severity,
+            evidence_reference=urban_event.evidence.image_path if urban_event.evidence else "EVIDENCE_REFERENCE_UNAVAILABLE",
+            status=QueueStatus.PENDING if is_offline else QueueStatus.SYNCED,
+            synced_at=None if is_offline else time.time(),
+        )
+        edge_queue_store.enqueue(queued_item)
+
+        if is_offline:
+            event_dict["queue_status"] = "PENDING"
+            event_dict["sync_status"] = "QUEUED_LOCALLY"
+            event_dict["notes"] = (event_dict.get("notes") or "") + " [Stored locally in edge queue — awaiting network synchronization]"
+            return event_dict
+    except Exception as e:
+        print(f"[EDGE QUEUE INTEGRATION NOTE] {e}")
+
     LIVE_URBAN_EVENTS.append(event_dict)
     return event_dict
 

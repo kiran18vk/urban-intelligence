@@ -16,15 +16,31 @@ import {
   Layers,
   Sparkles,
   Info,
+  CheckCircle2,
+  ArrowRight,
+  Sliders,
+  RotateCcw,
+  Check,
+  AlertOctagon,
+  Camera,
 } from 'lucide-react';
 import { LoadingSpinner, ErrorState, EmptyState } from '@/components/ui/StateWrappers';
 import { SeverityBadge } from '@/components/ui/Badges';
 import { ConfidenceBar } from '@/components/ui/StateWrappers';
+import { ImageLightboxModal } from '@/components/ui/ImageLightboxModal';
 import { MapComponent } from '@/components/Map/MapComponent';
 import { apiService } from '@/services/api';
-import type { RoadDefect } from '@/types';
+import type { RoadDefect, DefectLifecycleStatus } from '@/types';
 import { formatTimestamp, formatFullTimestamp } from '@/lib/eventMeta';
-import { calculateDefectIntelligence } from '@/lib/defectIntelligence';
+import {
+  calculateDefectIntelligence,
+  LIFECYCLE_STAGES,
+  normalizeLifecycleStatus,
+  getLifecycleStageIndex,
+  getNextLifecycleStatus,
+  DEFAULT_COST_RATES,
+  type RepairCostRates,
+} from '@/lib/defectIntelligence';
 
 const DEFECT_TYPE_LABELS: Record<RoadDefect['type'], string> = {
   pothole: 'Pothole',
@@ -34,19 +50,25 @@ const DEFECT_TYPE_LABELS: Record<RoadDefect['type'], string> = {
   surface_raveling: 'Surface Raveling',
 };
 
-const DEFECT_STATUS_META: Record<RoadDefect['status'], { label: string; color: string; bgColor: string }> = {
-  detected: { label: 'Detected', color: 'text-accent-300', bgColor: 'bg-accent-500/15' },
-  verified: { label: 'Verified', color: 'text-amber-300', bgColor: 'bg-amber-500/15' },
-  scheduled: { label: 'Scheduled', color: 'text-orange-300', bgColor: 'bg-orange-500/15' },
-  repaired: { label: 'Repaired', color: 'text-emerald-300', bgColor: 'bg-emerald-500/15' },
-};
-
 export function DefectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<RoadDefect[]>([]);
   const [selected, setSelected] = useState<RoadDefect | null>(null);
-  const [filter, setFilter] = useState<'all' | RoadDefect['status']>('all');
+  const [filter, setFilter] = useState<string>('all');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Configurable cost assumptions state
+  const [showCostConfig, setShowCostConfig] = useState(false);
+  const [costRates, setCostRates] = useState<RepairCostRates>(DEFAULT_COST_RATES);
+
+  // Photographic evidence modal state
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+    attribution?: string;
+  } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -66,54 +88,102 @@ export function DefectsPage() {
     loadData();
   }, []);
 
+  const handleAdvanceLifecycle = async (newStatus: string) => {
+    if (!selected) return;
+    setIsUpdatingStatus(true);
+    try {
+      const updated = await apiService.updateDefectStatus(
+        selected.id,
+        newStatus,
+        `Progressed to ${newStatus} via municipal decision console`
+      );
+      // Update local state
+      const updatedData = data.map((d) => (d.id === selected.id ? { ...d, status: updated.status as any } : d));
+      setData(updatedData);
+      setSelected({ ...selected, status: updated.status as any });
+    } catch (err) {
+      console.error('Failed to advance lifecycle status:', err);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner size="lg" />;
   if (error) return <ErrorState message={error} onRetry={loadData} />;
 
-  const filtered = filter === 'all' ? data : data.filter((d) => d.status === filter);
+  const filtered =
+    filter === 'all'
+      ? data
+      : data.filter((d) => normalizeLifecycleStatus(d.status) === filter.toUpperCase());
 
-  const filters = [
-    { key: 'all' as const, label: 'All', count: data.length },
-    { key: 'detected' as const, label: 'Detected', count: data.filter((d) => d.status === 'detected').length },
-    { key: 'verified' as const, label: 'Verified', count: data.filter((d) => d.status === 'verified').length },
-    { key: 'scheduled' as const, label: 'Scheduled', count: data.filter((d) => d.status === 'scheduled').length },
-    { key: 'repaired' as const, label: 'Repaired', count: data.filter((d) => d.status === 'repaired').length },
+  const filterTabs = [
+    { key: 'all', label: 'All Defects', count: data.length },
+    { key: 'DETECTED', label: '1. Detected', count: data.filter((d) => normalizeLifecycleStatus(d.status) === 'DETECTED').length },
+    { key: 'VERIFIED', label: '2. Verified', count: data.filter((d) => normalizeLifecycleStatus(d.status) === 'VERIFIED').length },
+    { key: 'PRIORITIZED', label: '3. Prioritized', count: data.filter((d) => normalizeLifecycleStatus(d.status) === 'PRIORITIZED').length },
+    { key: 'REPAIR_ACTION', label: '4. Action', count: data.filter((d) => normalizeLifecycleStatus(d.status) === 'REPAIR_ACTION').length },
+    { key: 'RE_OBSERVED', label: '5. Re-Observed', count: data.filter((d) => normalizeLifecycleStatus(d.status) === 'RE_OBSERVED').length },
+    { key: 'RESOLVED', label: '6. Resolved', count: data.filter((d) => normalizeLifecycleStatus(d.status) === 'RESOLVED').length },
   ];
 
-  const selectedIntel = selected ? calculateDefectIntelligence(selected) : null;
+  const selectedIntel = selected ? calculateDefectIntelligence(selected, costRates) : null;
+  const currentStageIdx = selected ? getLifecycleStageIndex(selected.status) : 1;
+  const currentStageNorm = selected ? normalizeLifecycleStatus(selected.status) : 'DETECTED';
+  const nextStage = selected ? getNextLifecycleStatus(selected.status) : 'VERIFIED';
 
   const getPriorityBadgeClass = (classification: string) => {
-    switch (classification) {
-      case 'Critical Priority':
+    switch (classification.toUpperCase()) {
+      case 'CRITICAL':
+      case 'CRITICAL PRIORITY':
         return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-      case 'High Priority':
+      case 'HIGH':
+      case 'HIGH PRIORITY':
         return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-      case 'Medium Priority':
+      case 'MEDIUM':
+      case 'MEDIUM PRIORITY':
         return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
       default:
-        return 'bg-slate-500/20 text-slate-300 border-slate-500/40';
+        return 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+    }
+  };
+
+  const getDeteriorationBadgeClass = (category: string) => {
+    switch (category.toUpperCase()) {
+      case 'RAPIDLY_DETERIORATING':
+      case 'RAPID DETERIORATION':
+        return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+      case 'SLOWLY_DETERIORATING':
+      case 'SLOW DETERIORATION':
+      case 'MODERATE DETERIORATION':
+        return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      case 'IMPROVING':
+        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+      default:
+        return 'bg-sky-500/20 text-sky-300 border-sky-500/40';
     }
   };
 
   const getTrendIcon = (trend: string) => {
-    if (trend === 'Rapid Deterioration') return <TrendingUp className="h-3.5 w-3.5 text-rose-400" />;
-    if (trend === 'Moderate Deterioration') return <TrendingUp className="h-3.5 w-3.5 text-amber-400" />;
-    if (trend === 'Slow Deterioration') return <TrendingDown className="h-3.5 w-3.5 text-sky-400" />;
-    return <Minus className="h-3.5 w-3.5 text-emerald-400" />;
+    if (trend.toUpperCase().includes('RAPID')) return <TrendingUp className="h-3.5 w-3.5 text-rose-400" />;
+    if (trend.toUpperCase().includes('SLOW') || trend.toUpperCase().includes('MODERATE')) return <TrendingUp className="h-3.5 w-3.5 text-amber-400" />;
+    if (trend.toUpperCase().includes('IMPROVING')) return <TrendingDown className="h-3.5 w-3.5 text-emerald-400" />;
+    return <Minus className="h-3.5 w-3.5 text-sky-400" />;
   };
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Summary */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Total Defects', value: data.length, color: 'text-amber-400' },
-          { label: 'Critical', value: data.filter((d) => d.severity === 'critical').length, color: 'text-rose-400' },
-          { label: 'Pending Repair', value: data.filter((d) => d.status === 'detected' || d.status === 'verified').length, color: 'text-amber-400' },
-          { label: 'Repaired', value: data.filter((d) => d.status === 'repaired').length, color: 'text-emerald-400' },
+          { label: 'Total Defects', value: data.length, color: 'text-amber-400', sub: 'In testbed corridors' },
+          { label: 'Critical / High Priority', value: data.filter((d) => d.severity === 'critical' || d.severity === 'high').length, color: 'text-rose-400', sub: 'Score > 65/100' },
+          { label: 'In Repair Workflow', value: data.filter((d) => ['DETECTED', 'VERIFIED', 'PRIORITIZED', 'REPAIR_ACTION'].includes(normalizeLifecycleStatus(d.status))).length, color: 'text-orange-400', sub: 'Stages 1 through 4' },
+          { label: 'Resolved / Repaired', value: data.filter((d) => normalizeLifecycleStatus(d.status) === 'RESOLVED').length, color: 'text-emerald-400', sub: 'Restored segments' },
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border border-ink-700 bg-ink-850 p-4">
             <p className={`text-2xl font-bold tabular ${stat.color}`}>{stat.value}</p>
-            <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-300">{stat.label}</p>
+            <p className="text-[10px] text-slate-500">{stat.sub}</p>
           </div>
         ))}
       </div>
@@ -125,12 +195,12 @@ export function DefectsPage() {
             defects={data}
             center={selected ? selected.location : undefined}
             filters={{ buses: false, potholes: true, waterlogging: false, congestion: false, incidents: false }}
-            height="560px"
+            height="620px"
           />
         </div>
 
         {/* Detail panel */}
-        <div className="rounded-xl border border-ink-700 bg-ink-850 p-5 space-y-4 max-h-[560px] overflow-y-auto pr-2">
+        <div className="rounded-xl border border-ink-700 bg-ink-850 p-5 space-y-4 max-h-[620px] overflow-y-auto pr-2">
           {selected && selectedIntel ? (
             <>
               {/* Header & Basic Meta */}
@@ -144,13 +214,76 @@ export function DefectsPage() {
                 </div>
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${DEFECT_STATUS_META[selected.status].bgColor} ${DEFECT_STATUS_META[selected.status].color}`}>
-                    {DEFECT_STATUS_META[selected.status].label}
-                  </span>
                   <span className="text-[11px] text-slate-400 flex items-center gap-1">
                     <MapPin className="h-3 w-3 text-accent-400" />
                     {selected.address}
                   </span>
+                </div>
+              </div>
+
+              {/* 4. DEFECT LIFECYCLE PROGRESSION (6 STAGES) */}
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Activity className="h-4 w-4 text-purple-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
+                      Defect Lifecycle Tracker
+                    </span>
+                  </div>
+                  <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-purple-300 border border-purple-500/30">
+                    Stage {currentStageIdx} of 6
+                  </span>
+                </div>
+
+                {/* 6-step progress bar */}
+                <div className="grid grid-cols-6 gap-1 pt-1">
+                  {LIFECYCLE_STAGES.map((st) => {
+                    const isPassed = st.step <= currentStageIdx;
+                    const isCurrent = st.step === currentStageIdx;
+                    return (
+                      <div key={st.key} className="flex flex-col items-center">
+                        <div
+                          className={`h-1.5 w-full rounded-full transition-all duration-300 ${
+                            isCurrent
+                              ? 'bg-purple-400 shadow-sm shadow-purple-500'
+                              : isPassed
+                              ? 'bg-purple-500/60'
+                              : 'bg-ink-750'
+                          }`}
+                        />
+                        <span
+                          className={`mt-1 text-[8.5px] font-semibold text-center leading-tight truncate w-full ${
+                            isCurrent ? 'text-purple-300 font-bold' : isPassed ? 'text-slate-300' : 'text-slate-600'
+                          }`}
+                        >
+                          {st.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded bg-ink-900/80 p-2.5 border border-ink-750 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Current Status</span>
+                    <span className="font-bold text-purple-300">{LIFECYCLE_STAGES[currentStageIdx - 1]?.label}</span>
+                    <p className="text-[10px] text-slate-500">{LIFECYCLE_STAGES[currentStageIdx - 1]?.description}</p>
+                  </div>
+                  {currentStageNorm !== 'RESOLVED' && (
+                    <button
+                      onClick={() => handleAdvanceLifecycle(nextStage)}
+                      disabled={isUpdatingStatus}
+                      className="inline-flex items-center gap-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 px-2.5 py-1.5 text-xs font-semibold text-purple-300 transition shrink-0"
+                    >
+                      {isUpdatingStatus ? 'Advancing...' : `Advance to ${nextStage}`}
+                      <ArrowRight className="h-3 w-3" />
+                    </button>
+                  )}
+                  {currentStageNorm === 'RESOLVED' && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
+                      <Check className="h-3.5 w-3.5" /> Resolved
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -164,15 +297,15 @@ export function DefectsPage() {
                     </span>
                   </div>
                   <span className="rounded bg-accent-500/20 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-accent-300 border border-accent-500/30">
-                    Calculated / Derived Maintenance Priority
+                    0–100 Explainable Score
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
                   <div>
-                    <span className="text-[10px] uppercase text-slate-400 font-semibold block">Priority Classification</span>
-                    <span className={`inline-block mt-0.5 rounded-lg border px-2.5 py-1 text-xs font-bold tracking-wide ${getPriorityBadgeClass(selectedIntel.priority.classification)}`}>
-                      {selectedIntel.priority.classification}
+                    <span className="text-[10px] uppercase text-slate-400 font-semibold block">Priority Level</span>
+                    <span className={`inline-block mt-0.5 rounded-lg border px-2.5 py-1 text-xs font-bold tracking-wide ${getPriorityBadgeClass(selectedIntel.priority.level)}`}>
+                      {selectedIntel.priority.level} PRIORITY
                     </span>
                   </div>
                   <div className="text-right">
@@ -183,25 +316,41 @@ export function DefectsPage() {
                   </div>
                 </div>
 
-                {/* Factors Grid */}
+                {/* Explainable Factor Breakdown */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-accent-500/20 text-xs">
                   <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Defect Severity</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>Defect Severity</span>
+                      <span className="text-[9px] text-accent-400 font-bold">35% wt</span>
+                    </div>
                     <span className="font-mono font-semibold text-slate-200">{selectedIntel.priority.defectSeverityScore} / 100</span>
                   </div>
                   <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Traffic Load</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>Defect Density</span>
+                      <span className="text-[9px] text-accent-400 font-bold">20% wt</span>
+                    </div>
+                    <span className="font-mono font-semibold text-slate-200">{selectedIntel.priority.defectDensityScore} / 100</span>
+                  </div>
+                  <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>Traffic / Congestion</span>
+                      <span className="text-[9px] text-accent-400 font-bold">25% wt</span>
+                    </div>
                     <span className="font-mono font-semibold text-slate-200">{selectedIntel.priority.trafficLoad} / 100</span>
                   </div>
                   <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Recurrence / Frequency</span>
-                    <span className="font-mono font-semibold text-slate-200">{selectedIntel.priority.recurrenceScore} / 100 ({selected.reports} reports)</span>
-                  </div>
-                  <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Road Importance</span>
-                    <span className="font-mono font-semibold text-slate-200">{selectedIntel.priority.roadImportanceScore} / 100</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>Recurrence</span>
+                      <span className="text-[9px] text-accent-400 font-bold">20% wt</span>
+                    </div>
+                    <span className="font-mono font-semibold text-slate-200">{selectedIntel.priority.recurrenceScore} / 100 ({selected.reports} obs)</span>
                   </div>
                 </div>
+
+                <p className="text-[10px] text-slate-400 bg-ink-900/60 p-2 rounded border border-ink-750 leading-relaxed">
+                  {selectedIntel.priority.explanation}
+                </p>
               </div>
 
               {/* 2. ROAD QUALITY DETERIORATION INDEX CARD */}
@@ -214,29 +363,33 @@ export function DefectsPage() {
                     </span>
                   </div>
                   <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-amber-300 border border-amber-500/30">
-                    DEMO / ESTIMATE DATA
+                    0.0–10.0 Index
                   </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-semibold block">Deterioration Rate</span>
+                    <span className={`inline-block mt-0.5 rounded-lg border px-2.5 py-1 text-xs font-bold tracking-wide ${getDeteriorationBadgeClass(selectedIntel.deterioration.category)}`}>
+                      {selectedIntel.deterioration.category}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase text-slate-400 font-semibold block">Deterioration Index</span>
+                    <span className="font-mono text-2xl font-bold text-amber-300 tabular-nums">
+                      {selectedIntel.deterioration.index}<span className="text-xs font-normal text-slate-500"> / 10</span>
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Current Road Condition</span>
+                    <span className="text-[10px] text-slate-400 block">Current Surface State</span>
                     <span className="font-semibold text-amber-200">{selectedIntel.deterioration.currentCondition}</span>
                   </div>
                   <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Observed Baseline</span>
-                    <span className="font-semibold text-slate-300">{selectedIntel.deterioration.previousCondition}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between rounded bg-ink-900/80 p-2.5 border border-ink-750 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">Deterioration Rate</span>
-                    <span className="font-mono font-bold text-rose-300">+{selectedIntel.deterioration.deteriorationRatePct}% / month</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {getTrendIcon(selectedIntel.deterioration.trend)}
-                    <span className="font-semibold text-slate-200">{selectedIntel.deterioration.trend}</span>
+                    <span className="text-[10px] text-slate-400 block">Observation History</span>
+                    <span className="font-semibold text-slate-300">{selectedIntel.deterioration.observationHistoryCount} pass-by records</span>
                   </div>
                 </div>
 
@@ -246,30 +399,59 @@ export function DefectsPage() {
                     {selectedIntel.deterioration.preventiveIndication}
                   </p>
                 </div>
+
+                <div className="text-[9.5px] text-amber-400/80 italic">
+                  * {selectedIntel.deterioration.disclaimer}
+                </div>
               </div>
 
-              {/* 3. MAINTENANCE COST ESTIMATION CARD */}
+              {/* 3. MAINTENANCE COST ESTIMATOR */}
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <IndianRupee className="h-4 w-4 text-emerald-400" />
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                      Maintenance Cost Estimation
+                      Maintenance Cost Estimator
                     </span>
                   </div>
-                  <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-emerald-300 border border-emerald-500/30">
-                    Rough Maintenance Cost Estimate
-                  </span>
+                  <button
+                    onClick={() => setShowCostConfig(!showCostConfig)}
+                    className="flex items-center gap-1 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                  >
+                    <Sliders className="h-2.5 w-2.5" />
+                    {showCostConfig ? 'Hide Rates' : 'Config Rates'}
+                  </button>
                 </div>
 
-                <div className="rounded bg-emerald-950/20 border border-emerald-500/20 p-2 text-[10.5px] text-emerald-300/80 flex items-start gap-1.5">
-                  <Info className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Prototype budget estimate based on standard unit rates. Not an official government tender cost.</span>
-                </div>
+                {showCostConfig && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-ink-900 p-2.5 space-y-2 text-xs animate-fade-in">
+                    <span className="text-[10px] font-bold uppercase text-emerald-400 block">Repair Unit Rate Assumptions (INR)</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9.5px] text-slate-400 block">Pothole/Patch (₹/m²)</label>
+                        <input
+                          type="number"
+                          value={costRates.potholePatchRatePerSqM}
+                          onChange={(e) => setCostRates({ ...costRates, potholePatchRatePerSqM: Number(e.target.value) || 0 })}
+                          className="w-full rounded bg-ink-800 border border-ink-700 px-2 py-1 text-slate-200 text-xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9.5px] text-slate-400 block">Crack Seal (₹/m)</label>
+                        <input
+                          type="number"
+                          value={costRates.crackSealRatePerM}
+                          onChange={(e) => setCostRates({ ...costRates, crackSealRatePerM: Number(e.target.value) || 0 })}
+                          className="w-full rounded bg-ink-800 border border-ink-700 px-2 py-1 text-slate-200 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded bg-ink-900/80 p-2 border border-ink-750">
-                    <span className="text-[10px] text-slate-400 block">Affected Length / Area</span>
+                    <span className="text-[10px] text-slate-400 block">Affected Geometry</span>
                     <span className="font-mono font-semibold text-slate-200">
                       {selectedIntel.costEstimate.affectedLengthMeters}m ({selectedIntel.costEstimate.affectedAreaSqM} m²)
                     </span>
@@ -280,23 +462,28 @@ export function DefectsPage() {
                   </div>
                 </div>
 
-                <div className="rounded bg-ink-900/80 p-2.5 border border-ink-750 space-y-1 text-xs">
-                  <span className="text-[10px] text-slate-400 block">Approx. Maintenance Requirement</span>
-                  <p className="font-medium text-slate-200 text-[11px]">{selectedIntel.costEstimate.estimatedQuantity}</p>
+                {/* Primary Cost Range Display */}
+                <div className="rounded bg-emerald-950/40 p-3 border border-emerald-500/30 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-emerald-400">Estimated Cost</span>
+                    <span className="font-mono text-xl font-bold text-emerald-300 tabular-nums">
+                      ₹{selectedIntel.costEstimate.estimatedCostINR.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-emerald-500/20 font-mono">
+                    <span>Estimated cost range (±20% planning range):</span>
+                    <span className="text-emerald-300 font-semibold">
+                      ₹{selectedIntel.costEstimate.costRangeMinINR.toLocaleString('en-IN')} – ₹{selectedIntel.costEstimate.costRangeMaxINR.toLocaleString('en-IN')}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded bg-emerald-950/40 p-3 border border-emerald-500/30">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 block">Estimated Maintenance Cost</span>
-                    <span className="text-[10px] text-slate-400">Unit rate: ₹{selectedIntel.costEstimate.unitRateINR.toLocaleString('en-IN')} / m²</span>
-                  </div>
-                  <span className="font-mono text-xl font-bold text-emerald-300 tabular-nums">
-                    ₹{selectedIntel.costEstimate.estimatedCostINR.toLocaleString('en-IN')}
-                  </span>
+                <div className="text-[9.5px] text-emerald-400/80 italic">
+                  * {selectedIntel.costEstimate.disclaimer}
                 </div>
               </div>
 
-              {/* Secondary Technical Details */}
+              {/* Technical Inspection Info */}
               <div className="space-y-2 text-xs border-t border-ink-750 pt-3">
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-500" /> Detected</span>
@@ -312,17 +499,88 @@ export function DefectsPage() {
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-ink-700">
-                <ConfidenceBar value={selected.confidence} label="AI Detection Confidence" />
+              {/* Road Defect Photographic Evidence Section */}
+              <div className="rounded-xl border border-ink-700 bg-ink-850 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-sky-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                      Road Defect Evidence
+                    </span>
+                  </div>
+                  <span className="rounded bg-sky-500/15 px-2 py-0.5 text-[9.5px] font-semibold text-sky-300 border border-sky-500/30">
+                    Real-world reference
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Pothole Photo Card */}
+                  <div
+                    onClick={() =>
+                      setPreviewImage({
+                        url: '/assets/road-defects/pothole-real-01.jpg',
+                        title: 'Road Pothole Surface Distress',
+                        subtitle: `Defect ID: ${selected.id} · AI Conf: ${(selected.confidence * 100).toFixed(0)}% · Location: ${selected.address}`,
+                        attribution: 'Wikimedia Commons (Public Domain dedication by Uncl3dad)',
+                      })
+                    }
+                    className="group relative cursor-pointer rounded-lg overflow-hidden border border-ink-750 bg-ink-900 transition hover:border-accent-500/50"
+                  >
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-black/40">
+                      <img
+                        src="/assets/road-defects/pothole-real-01.jpg"
+                        alt="Road Pothole Reference"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                    </div>
+                    <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between">
+                      <span className="text-[10.5px] font-bold text-slate-100">Pothole</span>
+                      <span className="text-[9px] font-mono font-semibold text-amber-300 bg-black/60 px-1.5 py-0.5 rounded">
+                        {(selected.confidence * 100).toFixed(0)}% Conf
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Road Crack Photo Card */}
+                  <div
+                    onClick={() =>
+                      setPreviewImage({
+                        url: '/assets/road-defects/road-crack-real-01.jpg',
+                        title: 'Asphalt Deterioration & Cracking',
+                        subtitle: `Defect ID: ${selected.id} · AI Conf: ${(selected.confidence * 100).toFixed(0)}% · Location: ${selected.address}`,
+                        attribution: 'Wikimedia Commons (CC BY-SA 3.0 by Bidgee)',
+                      })
+                    }
+                    className="group relative cursor-pointer rounded-lg overflow-hidden border border-ink-750 bg-ink-900 transition hover:border-accent-500/50"
+                  >
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-black/40">
+                      <img
+                        src="/assets/road-defects/road-crack-real-01.jpg"
+                        alt="Road Crack Reference"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                    </div>
+                    <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between">
+                      <span className="text-[10.5px] font-bold text-slate-100">Road Crack</span>
+                      <span className="text-[9px] font-mono font-semibold text-amber-300 bg-black/60 px-1.5 py-0.5 rounded">
+                        {(selected.confidence * 100).toFixed(0)}% Conf
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                  <span className="italic">Click photograph to enlarge preview</span>
+                  <span className="font-semibold text-slate-500">Real-world reference</span>
+                </div>
               </div>
 
-              <div className="flex gap-2">
-                <button className="flex-1 rounded-lg bg-accent-500/15 px-3 py-2 text-xs font-medium text-accent-300 transition hover:bg-accent-500/25">
-                  Verify Defect
-                </button>
-                <button className="flex-1 rounded-lg bg-amber-500/15 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/25">
-                  Schedule Work Order
-                </button>
+              <div className="pt-2 border-t border-ink-700">
+                <ConfidenceBar value={selected.confidence} label="AI Detection Confidence" />
               </div>
             </>
           ) : (
@@ -333,7 +591,7 @@ export function DefectsPage() {
 
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
-        {filters.map((f) => (
+        {filterTabs.map((f) => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
@@ -347,7 +605,7 @@ export function DefectsPage() {
         ))}
       </div>
 
-      {/* Defects table with 3 Intelligence Columns */}
+      {/* Defects table with Priority, Deterioration, Lifecycle and Cost Range Columns */}
       {filtered.length === 0 ? (
         <EmptyState title="No defects in this category" message="No road defects match the current filter." />
       ) : (
@@ -359,15 +617,17 @@ export function DefectsPage() {
                 <th className="px-4 py-3 text-left font-medium">Type</th>
                 <th className="px-4 py-3 text-left font-medium">Location</th>
                 <th className="px-4 py-3 text-center font-medium">Severity</th>
-                <th className="px-4 py-3 text-center font-medium">Priority Score</th>
-                <th className="px-4 py-3 text-center font-medium">Deterioration Rate</th>
-                <th className="px-4 py-3 text-center font-medium">Rough Est. Cost</th>
-                <th className="px-4 py-3 text-center font-medium">Status</th>
+                <th className="px-4 py-3 text-center font-medium">Priority (0-100)</th>
+                <th className="px-4 py-3 text-center font-medium">Deterioration (0-10)</th>
+                <th className="px-4 py-3 text-center font-medium">Estimated Cost Range</th>
+                <th className="px-4 py-3 text-center font-medium">Lifecycle Stage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-700">
               {filtered.map((d) => {
-                const intel = calculateDefectIntelligence(d);
+                const intel = calculateDefectIntelligence(d, costRates);
+                const normStatus = normalizeLifecycleStatus(d.status);
+                const stageIdx = getLifecycleStageIndex(d.status);
                 return (
                   <tr
                     key={d.id}
@@ -384,22 +644,23 @@ export function DefectsPage() {
                     <td className="px-4 py-3 text-xs text-slate-400 max-w-xs truncate">{d.address}</td>
                     <td className="px-4 py-3 text-center"><SeverityBadge severity={d.severity} /></td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-block rounded px-2 py-0.5 text-xs font-mono font-bold border ${getPriorityBadgeClass(intel.priority.classification)}`}>
-                        {intel.priority.score} ({intel.priority.classification.split(' ')[0]})
+                      <span className={`inline-block rounded px-2 py-0.5 text-xs font-mono font-bold border ${getPriorityBadgeClass(intel.priority.level)}`}>
+                        {intel.priority.score} ({intel.priority.level})
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1 font-mono text-xs text-rose-300">
-                        {getTrendIcon(intel.deterioration.trend)}
-                        <span>+{intel.deterioration.deteriorationRatePct}%/mo</span>
+                      <div className="flex items-center justify-center gap-1 font-mono text-xs text-amber-300">
+                        {getTrendIcon(intel.deterioration.category)}
+                        <span>{intel.deterioration.index} / 10</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center font-mono font-bold text-emerald-300 text-xs tabular">
-                      ₹{intel.costEstimate.estimatedCostINR.toLocaleString('en-IN')}
+                      ₹{intel.costEstimate.costRangeMinINR.toLocaleString('en-IN')} – ₹{intel.costEstimate.costRangeMaxINR.toLocaleString('en-IN')}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${DEFECT_STATUS_META[d.status].bgColor} ${DEFECT_STATUS_META[d.status].color}`}>
-                        {DEFECT_STATUS_META[d.status].label}
+                      <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                        <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                        {stageIdx}. {normStatus}
                       </span>
                     </td>
                   </tr>
@@ -408,6 +669,19 @@ export function DefectsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Full-screen Lightbox Image Modal */}
+      {previewImage && (
+        <ImageLightboxModal
+          isOpen={!!previewImage}
+          onClose={() => setPreviewImage(null)}
+          imageUrl={previewImage.url}
+          title={previewImage.title}
+          subtitle={previewImage.subtitle}
+          attribution={previewImage.attribution}
+          tag="Real-world reference"
+        />
       )}
     </div>
   );

@@ -21,12 +21,14 @@ import {
   Compass,
   FileText,
   ShieldAlert,
+  Users,
+  ClipboardCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { MapComponent } from '@/components/Map/MapComponent';
 import { LoadingSpinner, ErrorState } from '@/components/ui/StateWrappers';
 import { apiService } from '@/services/api';
-import type { Bus, UrbanEvent, UrbanEventTypeString, UrbanSeverityString, GPSCoord } from '@/types';
+import type { Bus, UrbanEvent, UrbanEventTypeString, UrbanSeverityString, GPSCoord, PedestrianHotspot } from '@/types';
 import {
   URBAN_EVENT_META,
   URBAN_SEVERITY_META,
@@ -42,6 +44,7 @@ export function MapPage() {
   const [error, setError] = useState<string | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [urbanEvents, setUrbanEvents] = useState<UrbanEvent[]>([]);
+  const [pedestrianHotspots, setPedestrianHotspots] = useState<PedestrianHotspot[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<UrbanEvent | null>(null);
   const [mapCenter, setMapCenter] = useState<GPSCoord>({ lat: 18.5204, lng: 73.8567 });
 
@@ -49,17 +52,20 @@ export function MapPage() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('ALL');
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('ALL');
   const [showBuses, setShowBuses] = useState<boolean>(true);
+  const [showPedestrianRisk, setShowPedestrianRisk] = useState<boolean>(true);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [busData, eventsData] = await Promise.all([
+      const [busData, eventsData, hotspotsData] = await Promise.all([
         apiService.getBuses(),
         apiService.getRecentUrbanEvents({ limit: 100 }),
+        apiService.getPedestrianHotspots().catch(() => []),
       ]);
       setBuses(busData);
       setUrbanEvents(eventsData);
+      setPedestrianHotspots(hotspotsData);
       if (eventsData.length > 0 && !selectedEvent) {
         setSelectedEvent(eventsData[0]);
       }
@@ -251,6 +257,20 @@ export function MapPage() {
 
           <div className="h-5 w-[1px] bg-ink-700 mx-1 hidden sm:block" />
 
+          {/* Pedestrian Risk Hotspot Layer Toggle */}
+          <button
+            onClick={() => setShowPedestrianRisk((prev) => !prev)}
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all ${
+              showPedestrianRisk
+                ? 'border-sky-500/40 bg-sky-500/10 text-sky-300'
+                : 'border-ink-700 bg-ink-900 text-slate-500'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            <span>Pedestrian Risk</span>
+            {showPedestrianRisk ? <Eye className="h-3 w-3 ml-0.5" /> : <EyeOff className="h-3 w-3 ml-0.5" />}
+          </button>
+
           {/* Bus Layer Toggle */}
           <button
             onClick={() => setShowBuses((prev) => !prev)}
@@ -275,9 +295,11 @@ export function MapPage() {
             center={mapCenter}
             buses={buses}
             urbanEvents={filteredEvents}
+            pedestrianHotspots={pedestrianHotspots}
             selectedUrbanEventId={selectedEvent?.event_id}
             onSelectUrbanEvent={handleSelectEvent}
             showBuses={showBuses}
+            showPedestrianRisk={showPedestrianRisk}
             height="620px"
           />
           <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
@@ -297,7 +319,9 @@ export function MapPage() {
               <div className="flex items-start justify-between gap-2 border-b border-ink-700 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-accent-300">{selectedEvent.event_id}</span>
+                    <span className="font-mono text-xs font-bold text-accent-300">
+                      {selectedEvent.event_id.replace(/^EVT-DEMO-/, 'EVT-')}
+                    </span>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded border ${selectedSevMeta?.bgColor} ${selectedSevMeta?.color} border-current`}
                     >
@@ -504,12 +528,29 @@ export function MapPage() {
                 </div>
               </div>
 
-              {/* Notes / Demo tag */}
+              {/* Event Notes */}
               {selectedEvent.notes && (
                 <p className="text-[11px] text-slate-500 italic bg-ink-900/50 p-2 rounded border border-ink-800">
-                  {selectedEvent.notes}
+                  {selectedEvent.notes.replace(/^\[DEMO SEED\]\s*/i, '').replace(/^\[DEMO SCHEMA ONLY - NO LIVE INCIDENT\]\s*/i, '')}
                 </p>
               )}
+
+              {/* Human Review Status & Link */}
+              <div className="rounded-lg bg-ink-900 p-2.5 border border-indigo-500/20 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Human Review</div>
+                  <div className="text-xs font-semibold text-indigo-300 mt-0.5">
+                    {selectedEvent.status === 'CONFIRMED' ? 'CONFIRMED' : selectedEvent.status === 'DISMISSED' || selectedEvent.status === 'REJECTED' ? 'REJECTED' : 'PENDING'}
+                  </div>
+                </div>
+                <a
+                  href="#/review-center"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-indigo-600/80 hover:bg-indigo-600 text-white transition"
+                >
+                  <ClipboardCheck className="h-3 w-3" />
+                  OPEN REVIEW
+                </a>
+              </div>
 
               {/* Pan to Event Action */}
               <button
@@ -538,6 +579,7 @@ export function MapPage() {
             </div>
             <div className="mt-3 space-y-2.5">
               {[
+                { label: 'Pedestrian Risk Hotspot', color: 'bg-rose-600', shape: 'rounded-full', icon: Users },
                 { label: 'Road Pothole', color: 'bg-rose-500', shape: 'rounded', icon: CircleAlert },
                 { label: 'Road Crack / Distress', color: 'bg-amber-500', shape: 'rounded', icon: AlertTriangle },
                 { label: 'Traffic Congestion', color: 'bg-orange-500', shape: 'rounded-full', icon: TrafficCone },

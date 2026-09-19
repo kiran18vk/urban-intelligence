@@ -18,9 +18,11 @@ import {
   Sparkles,
   Info,
   Compass,
+  ClipboardCheck,
 } from 'lucide-react';
 import { LoadingSpinner, ErrorState, EmptyState } from '@/components/ui/StateWrappers';
 import { SeverityBadge } from '@/components/ui/Badges';
+import { ImageLightboxModal } from '@/components/ui/ImageLightboxModal';
 import { MapComponent } from '@/components/Map/MapComponent';
 import { formatTimestamp, formatFullTimestamp } from '@/lib/eventMeta';
 import { apiService } from '@/services/api';
@@ -34,6 +36,15 @@ export function IncidentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  // Photographic evidence modal state
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+    attribution?: string;
+  } | null>(null);
 
   const loadIncidents = async () => {
     setLoading(true);
@@ -48,6 +59,38 @@ export function IncidentsPage() {
       setError(e instanceof Error ? e.message : 'Failed to load incidents');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateAction = async () => {
+    if (!selectedIncident) return;
+    try {
+      setUpdatingStatus(true);
+      const action = await apiService.createAuthorityAction({
+        target_id: selectedIncident.incident_id,
+        target_type: 'INCIDENT',
+        event_type: selectedIncident.incident_type,
+        title: `Incident Response: ${getTypeLabel(selectedIncident.incident_type)} (${formatIncidentId(selectedIncident.incident_id)})`,
+        description: `Prototype response action for potential incident detected by Bus ${selectedIncident.bus_id}. Vehicle track #${selectedIncident.track_id ?? 'N/A'}. Plate: ${formatPlate(selectedIncident.plate_text) || 'Unreadable'}. Notes: ${cleanNotes(selectedIncident.notes)}`,
+        severity: (selectedIncident.severity.toUpperCase() as any) || 'HIGH',
+        latitude: selectedIncident.gps.latitude,
+        longitude: selectedIncident.gps.longitude,
+        source_bus_ids: [selectedIncident.bus_id],
+        evidence_refs: selectedIncident.evidence.image_path ? [selectedIncident.evidence.image_path] : undefined,
+        operational_confidence: selectedIncident.operational_confidence,
+        reliability: selectedIncident.reliability?.score,
+        simulated_gps: true,
+        action_type: selectedIncident.severity === 'CRITICAL' ? 'DISPATCH' : 'INSPECT',
+        assigned_team: 'Public Safety',
+      });
+      setActionSuccess(`Authority Action ${action.action_id} created. Redirecting to Action Center...`);
+      setTimeout(() => {
+        window.location.hash = '#/authority-actions';
+      }, 1000);
+    } catch (err: any) {
+      alert(`Failed to create authority action: ${err.message || 'Error'}`);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -132,6 +175,11 @@ export function IncidentsPage() {
     }
   };
 
+  const formatIncidentId = (id: string) => id.replace(/^INC-DEMO-/, 'INC-');
+  const formatPlate = (plate?: string | null) => (plate ? plate.replace(/SYNTHETIC-DEMO/g, 'SYNTHETIC DATA').replace(/SYNTHETIC_DEMO/g, 'SYNTHETIC DATA') : null);
+  const cleanNotes = (notes?: string) => (notes || '').replace(/^\[DEMO ONLY\]\s*/i, '').replace(/^\[DEMO SEED\]\s*/i, '').replace(/^\[DEMO SCHEMA ONLY - NO LIVE INCIDENT\]\s*/i, '');
+  const formatAnprStatus = (status?: string) => (status || '').replace('SYNTHETIC_DEMO_FORMAT', 'SYNTHETIC_FORMAT_VALID');
+
   return (
     <div className="space-y-4 animate-fade-in text-slate-200">
       {/* Header Banner */}
@@ -151,7 +199,7 @@ export function IncidentsPage() {
           </div>
           <div className="flex items-center gap-2 bg-ink-900 px-3 py-1.5 rounded-lg border border-ink-750 text-[11px] text-slate-400">
             <Info className="h-3.5 w-3.5 text-accent-400 flex-shrink-0" />
-            <span>Demonstration mode with synthetic validation data & deterministic GPS.</span>
+            <span>Simulated testbed operations with synthetic validation data & deterministic GPS.</span>
           </div>
         </div>
       </div>
@@ -241,13 +289,8 @@ export function IncidentsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-xs text-slate-100">{getTypeLabel(inc.incident_type)}</span>
-                          {inc.is_demo && (
-                            <span className="rounded bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-mono font-bold text-amber-300">
-                              DEMO
-                            </span>
-                          )}
                         </div>
-                        <p className="mt-0.5 font-mono text-[10px] text-slate-400">{inc.incident_id}</p>
+                        <p className="mt-0.5 font-mono text-[10px] text-slate-400">{formatIncidentId(inc.incident_id)}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {getStatusBadge(inc.status)}
@@ -255,7 +298,9 @@ export function IncidentsPage() {
                       </div>
                     </div>
 
-                    <p className="mt-2 text-xs text-slate-300 line-clamp-2">{inc.notes}</p>
+                    <p className="mt-2 text-xs text-slate-300 line-clamp-2">
+                      {cleanNotes(inc.notes)}
+                    </p>
 
                     <div className="mt-3 grid grid-cols-2 gap-2 pt-2 border-t border-ink-750/70 text-[11px] text-slate-400">
                       <div className="flex items-center gap-1.5">
@@ -267,7 +312,7 @@ export function IncidentsPage() {
                       <div className="flex items-center justify-end gap-1.5">
                         <Hash className="h-3 w-3 text-emerald-400" />
                         {inc.plate_text ? (
-                          <span className="font-mono font-bold text-emerald-300">{inc.plate_text}</span>
+                          <span className="font-mono font-bold text-emerald-300">{formatPlate(inc.plate_text)}</span>
                         ) : (
                           <span className="text-slate-500 italic">Plate not readable</span>
                         )}
@@ -301,7 +346,7 @@ export function IncidentsPage() {
                       {getStatusBadge(selectedIncident.status)}
                     </div>
                     <p className="font-mono text-xs text-slate-400 mt-0.5">
-                      ID: {selectedIncident.incident_id} · Bus {selectedIncident.bus_id} ({selectedIncident.camera_id})
+                      ID: {formatIncidentId(selectedIncident.incident_id)} · Bus {selectedIncident.bus_id} ({selectedIncident.camera_id})
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -330,15 +375,40 @@ export function IncidentsPage() {
                 </div>
 
                 {/* Human-in-the-Loop Action Recommendation */}
-                <div className="rounded-lg bg-rose-500/10 border border-rose-500/25 p-3 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-rose-400 flex-shrink-0 mt-0.5" />
-                  <div className="space-y-1 text-xs">
-                    <p className="font-bold text-rose-200">Potential Incident Detected — Requires Human Review</p>
-                    <p className="text-slate-300 leading-relaxed">
-                      AI perception identified a sudden departure/proximity interaction. This prototype workflow notifies operators for manual review before any enforcement action. Does NOT constitute verified legal liability or official RTO database confirmation.
-                    </p>
+                <div className="rounded-lg bg-rose-500/10 border border-rose-500/25 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-xs">
+                      <p className="font-bold text-rose-200">Potential Incident Detected — Requires Human Review</p>
+                      <p className="text-slate-300 leading-relaxed">
+                        AI perception identified a sudden departure/proximity interaction. This prototype workflow notifies operators for manual review before any enforcement action. Does NOT constitute verified legal liability or official RTO database confirmation.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleCreateAction}
+                      disabled={updatingStatus}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/90 hover:bg-emerald-600 text-white shadow-sm transition disabled:opacity-50"
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      CREATE ACTION
+                    </button>
+                    <a
+                      href="#/review-center"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/80 hover:bg-indigo-600 text-white shadow-sm transition"
+                    >
+                      <ClipboardCheck className="h-3.5 w-3.5" />
+                      OPEN REVIEW
+                    </a>
                   </div>
                 </div>
+                {actionSuccess && (
+                  <div className="rounded-lg bg-emerald-950/80 border border-emerald-500/40 p-2.5 text-xs text-emerald-300 font-medium">
+                    {actionSuccess}
+                  </div>
+                )}
               </div>
 
               {/* Three Confidence Triad Cards (Phase 5 Observation Reliability) */}
@@ -382,7 +452,7 @@ export function IncidentsPage() {
                       <span className="text-slate-400">Number Plate</span>
                       {selectedIncident.plate_text ? (
                         <span className="font-mono text-base font-bold text-emerald-300 tracking-wider">
-                          {selectedIncident.plate_text}
+                          {formatPlate(selectedIncident.plate_text)}
                         </span>
                       ) : (
                         <span className="text-slate-500 font-semibold italic">Plate not readable</span>
@@ -396,7 +466,7 @@ export function IncidentsPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-400">ANPR Status</span>
-                      <span className="font-mono text-[11px] text-amber-300">{selectedIncident.anpr_status}</span>
+                      <span className="font-mono text-[11px] text-amber-300">{formatAnprStatus(selectedIncident.anpr_status)}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-400">Track Identifier</span>
@@ -505,6 +575,86 @@ export function IncidentsPage() {
                 </div>
               )}
 
+              {/* Incident Photographic Reference Evidence Section */}
+              <div className="rounded-xl border border-ink-700 bg-ink-850 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-rose-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Incident Evidence</h4>
+                  </div>
+                  <span className="rounded bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 border border-sky-500/30">
+                    Real-world reference
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Road Traffic Accident Photograph */}
+                  <div
+                    onClick={() =>
+                      setPreviewImage({
+                        url: '/assets/incidents/road-incident-real-01.jpg',
+                        title: 'Road Traffic Accident Scene',
+                        subtitle: `Incident: ${formatIncidentId(selectedIncident.incident_id)} · Multi-vehicle interaction visual context`,
+                        attribution: 'Wikimedia Commons (Public Domain / CC0 dedication by Junior Libby)',
+                      })
+                    }
+                    className="group relative cursor-pointer rounded-lg overflow-hidden border border-ink-750 bg-ink-900 transition hover:border-rose-500/50"
+                  >
+                    <div className="aspect-[16/10] w-full overflow-hidden bg-black/40">
+                      <img
+                        src="/assets/incidents/road-incident-real-01.jpg"
+                        alt="Road Traffic Accident Reference"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                    </div>
+                    <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-100">Traffic Accident Scene</span>
+                      <span className="text-[9.5px] font-semibold text-sky-300 bg-black/60 px-1.5 py-0.5 rounded border border-sky-500/20">
+                        Real-world reference
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Collision Damage Photograph */}
+                  <div
+                    onClick={() =>
+                      setPreviewImage({
+                        url: '/assets/incidents/vehicle-collision-real-01.jpg',
+                        title: 'Vehicle Collision Damage Inspection',
+                        subtitle: `Incident: ${formatIncidentId(selectedIncident.incident_id)} · Structural impact deformation reference`,
+                        attribution: 'Wikimedia Commons (CC BY-SA 2.0 by W. Robert Howell)',
+                      })
+                    }
+                    className="group relative cursor-pointer rounded-lg overflow-hidden border border-ink-750 bg-ink-900 transition hover:border-rose-500/50"
+                  >
+                    <div className="aspect-[16/10] w-full overflow-hidden bg-black/40">
+                      <img
+                        src="/assets/incidents/vehicle-collision-real-01.jpg"
+                        alt="Vehicle Collision Damage Reference"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                    </div>
+                    <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-100">Vehicle Collision Damage</span>
+                      <span className="text-[9.5px] font-semibold text-sky-300 bg-black/60 px-1.5 py-0.5 rounded border border-sky-500/20">
+                        Real-world reference
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded bg-ink-900/80 p-2.5 border border-ink-750 text-[10.5px] text-slate-400 flex items-start gap-1.5 leading-relaxed">
+                  <Info className="h-3.5 w-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Reference photographs provide situational and structural context for human operators. These do not depict the actual onboard camera capture or claim verified legal liability.
+                  </span>
+                </div>
+              </div>
+
               {/* Location & GIS Map Section */}
               <div className="rounded-xl border border-ink-700 bg-ink-850 p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -531,12 +681,12 @@ export function IncidentsPage() {
                         timestamp: typeof selectedIncident.timestamp === 'number' ? new Date(selectedIncident.timestamp * 1000).toISOString() : selectedIncident.timestamp,
                         busId: selectedIncident.bus_id,
                         camera: selectedIncident.camera_id,
-                        vehiclePlate: selectedIncident.plate_text ?? 'UNREADABLE',
+                        vehiclePlate: formatPlate(selectedIncident.plate_text) ?? 'UNREADABLE',
                         plateOcrConfidence: selectedIncident.plate_confidence ?? 0,
                         vehicleType: selectedIncident.vehicle_class,
                         vehicleColor: 'Unknown',
                         confidence: selectedIncident.confidence,
-                        description: selectedIncident.notes,
+                        description: cleanNotes(selectedIncident.notes),
                         thumbnail: selectedIncident.evidence.image_path ?? '',
                         reportedBy: 'AI Perception Engine',
                       },
@@ -559,6 +709,19 @@ export function IncidentsPage() {
           )}
         </div>
       </div>
+
+      {/* Full-screen Lightbox Image Modal */}
+      {previewImage && (
+        <ImageLightboxModal
+          isOpen={!!previewImage}
+          onClose={() => setPreviewImage(null)}
+          imageUrl={previewImage.url}
+          title={previewImage.title}
+          subtitle={previewImage.subtitle}
+          attribution={previewImage.attribution}
+          tag="Real-world reference"
+        />
+      )}
     </div>
   );
 }

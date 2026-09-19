@@ -1,272 +1,166 @@
-# AI-Powered Mobile Urban Intelligence Platform Using Public Transport Fleet
+# AI-Powered Urban Intelligence Platform Using Public Transport Fleet
 **Smart India Hackathon (SIH 2026) — Problem Statement PS 26124**
 
-> **Classification**: Prototype Urban Digital Twin for Mobile Sensing  
-> **Notice**: This platform is an edge-assisted, perception-driven urban intelligence prototype tested with realistic Pune City pilot corridors (FC Road, JM Road, Karve Road, Pune-Mumbai Hwy, Senapati Bapat Road). It does **NOT** claim complete city-wide real-world digital-twin sensor coverage; all spatial geometries, simulated telemetry, and synthetic ANPR datasets are designed for testbed verification and demonstration.
+> **Classification**: Prototype Urban Intelligence Platform for Mobile Sensing & Municipal Decision Support  
+> **Testbed Focus**: Pune Urban Mobility Testbed (PMPML Transit Fleet Corridor Pilot)  
+> **Honesty Notice**: All road geometries, simulated telemetry, and synthetic defect/ANPR datasets are designed for testbed verification. This platform operates as an explainable decision-support system requiring human validation. It does **not** claim live telecom network control, official RTO database integration, automated municipal dispatch certification, or physical repair certification without human review.
 
 ---
 
-## 1. Project Overview
+## 1. Executive Platform Summary
 
-The **Urban Intelligence Platform** turns routine public transit bus fleets into distributed, mobile sensing networks. As transit vehicles traverse urban corridors, onboard cameras capture real-time road conditions, traffic density, vehicle interactions, and infrastructure safety metrics.
+The **AI-Powered Urban Intelligence Platform Using Public Transport Fleet** turns routine public transit bus fleets into distributed, mobile edge perception networks. As transit vehicles traverse urban corridors, onboard multi-task perception models detect road hazards, traffic congestion, pedestrian risk, and license plates.
 
-Edge inference models run locally to detect defects (potholes, cracks), classify vehicle density, detect license plates, and trigger incident alerts. These edge events are synchronized with a FastAPI backend, processed through spatial clustering and reliability calibration layers, and synthesized into a **Mobile Sensing Urban Digital Twin** with interactive "What-If" scenario simulations.
-
----
-
-## 2. Target Architecture
+Observations are processed through an end-to-end traceable operational pipeline:
 
 ```
-                                +-----------------------------------+
-                                |     Edge Bus Fleet Cameras        |
-                                | (YOLO, ByteTrack, ANPR, Road AI)  |
-                                +-----------------+-----------------+
-                                                  | Edge Ingestion
-                                                  v
-+-----------------------------------------------------------------------------------+
-|                                FastAPI Backend                                    |
-|  +---------------------+  +---------------------+  +---------------------------+  |
-|  |   /api/health       |  |   /api/stats        |  |   /api/buses & /api/events|  |
-|  +---------------------+  +---------------------+  +---------------------------+  |
-|  +---------------------+  +---------------------+  +---------------------------+  |
-|  | /api/defects & road |  | /api/traffic & anpr |  |   /api/incidents          |  |
-|  +---------------------+  +---------------------+  +---------------------------+  |
-|  +---------------------+  +---------------------+  +---------------------------+  |
-|  | /api/analytics      |  | /api/reliability    |  |   /api/digital-twin       |  |
-|  +---------------------+  +---------------------+  +---------------------------+  |
-|                                                                                   |
-|  [Static Asset Mounter] -> Serves Production React dist/ (index.html, /assets/*)  |
-+-----------------------------------------+-----------------------------------------+
-                                          | Single-URL Serving (Port 8000)
-                                          v
-+-----------------------------------------------------------------------------------+
-|                        React 18 + TypeScript Client SPA                           |
-|  - HashRouter client-side routing (no server rewrite required)                    |
-|  - MapLibre GL spatial visualization & heatmaps                                   |
-|  - Routes: #/ (Overview), #/map, #/traffic, #/defects, #/incidents,               |
-|            #/analytics, #/digital-twin                                            |
-|  - Resilient API Service Layer (graceful mock data fallback)                      |
-+-----------------------------------------------------------------------------------+
+Camera / Video Stream
+      │
+      ▼
+Edge AI Perception (Multi-Task YOLOv8, ByteTrack, OCR)
+      │
+      ▼
+Sensor Reliability Calibration (Lighting, Weather, Occlusion)
+      │
+      ▼
+Urban Events & Offline Store-and-Forward Sync
+      │
+      ▼
+Multi-Bus Spatio-Temporal Correlation (Consensus Scoring)
+      │
+      ▼
+Human-in-the-Loop Review Center (Dual-Approval & Audit)
+      │
+      ▼
+Authority Alert & Action Center (SLA Tracking & Work-Orders)
+      │
+      ▼
+Closed-Loop Re-Observation (Multi-Pass Re-Surveys)
+      │
+      ▼
+Outcome Verification Engine (Resolved / Unresolved / Escalated)
+      │
+      ▼
+Predictive Urban Intelligence (Risk Forecasting & Deterioration Curves)
+      │
+      ▼
+Urban Digital Twin & Corridor GIS Analytics
 ```
 
 ---
 
-## 3. Local Setup & Requirements
+## 2. Feature Classification Matrix
 
-- **Python**: 3.10+ (tested on Python 3.10 / 3.11 / 3.12)
+To ensure absolute technical transparency for judges and evaluators, all capabilities are classified into three distinct categories:
+
+### A. IMPLEMENTED (Active Algorithmic Code & Production APIs)
+1. **Edge AI Perception Pipeline**: Multi-task inference for traffic object detection, lane tracking, ANPR OCR syntax validation, and road damage bounding boxes.
+2. **Reliability Calibration Layer**: Operational confidence weighting that discounts raw detection confidence based on environmental and optical degradation factors.
+3. **Offline Store-and-Forward Edge Queue**: SQLite persistent buffer guaranteeing zero data loss during simulated edge connectivity blackouts with automatic synchronization on link restoration.
+4. **Multi-Bus Event Correlation Engine**: Spatio-temporal clustering (DBSCAN + spatial hashing) correlating observations across overlapping transit corridors to eliminate false positives.
+5. **Human Review & Model Feedback Center**: Operator review interface with dual approval queues, evidence inspectors, and exportable feedback datasets for continuous model refinement.
+6. **Authority Alert & Action Center**: Protocol-ready operational dispatch assigning verified events to PWD, Traffic Police, and Municipal Maintenance teams with SLA tracking and state validation.
+7. **Closed-Loop Re-Observation & Outcome Verification**: Automated re-survey dispatch routing downstream buses to re-scan repair locations and compute empirical resolution scores.
+8. **Predictive Urban Intelligence & Risk Forecasting**: Deterministic deterioration curve forecasting, monsoon vulnerability modeling, persistent hotspot detection, and proactive intervention generation.
+9. **Urban Digital Twin & Scenario Simulator**: Real-time state engine maintaining road segments, traffic corridors, and assets with interactive what-if simulation models (maintenance, congestion surges, defect escalation).
+10. **GIS & MapLibre Mapping**: Geospatial vector mapping with automatic raster fallback, marker clustering, H3 corridor indexing, and deep-linked inspector popups.
+
+### B. SIMULATED / TESTBED (Deterministic Demonstrator Data)
+- **Pune PMPML Transit Testbed**: Pilot geometries and corridor waypoints across Pune (FC Road, JM Road, Karve Road, Tilak Road, Pune-Mumbai Highway, Baner-Hinjewadi).
+- **Synthetic Bus Telemetry**: Deterministic GPS coordinates, timestamps, speeds, and camera IDs.
+- **ANPR Test Dataset**: Synthetic Indian license plate patterns (e.g., `MH-12-XX-0000`) for privacy compliance and pattern validation.
+- **Incident Video Streams & Testbed Feeds**: Video assets and synthetic event injection controls for verification.
+
+### C. PROPOSED / FUTURE (Engineering Scope Roadmap)
+- **Direct Municipal ERP Linkage**: Bi-directional integration with external legacy government enterprise ERP systems.
+- **Official RTO Database Access**: Secured government vehicle registry database lookup.
+- **Physical Sensor Fusion**: Sub-surface Ground Penetrating Radar (GPR) and Falling Weight Deflectometer (FWD) integration.
+
+---
+
+## 3. Platform Navigation & Routes
+
+The application uses hash-based client routing (`#/`) ensuring flawless browser refreshes and SPA serving without complex server rewrites:
+
+| Route | Page | Purpose |
+| :--- | :--- | :--- |
+| `#/` | **Overview Dashboard** | Executive summary, 9-stage operational pipeline overview, KPIs |
+| `#/live-monitor` | **Live Monitor** | Real-time multi-task video inference, bounding boxes, FPS metrics |
+| `#/defects` | **Road Defects Registry** | Defect clustering, severity ratings, 6-stage lifecycle tracking |
+| `#/map` | **Live GIS Map** | MapLibre geospatial viewer with raster fallback and corridor layers |
+| `#/event-correlation` | **Event Correlation** | Spatio-temporal multi-bus clustering and consensus metrics |
+| `#/review-center` | **Human Review Center** | Human-in-the-loop review queue, evidence cards, audit logs |
+| `#/authority-actions` | **Authority Action Center** | SLA tracking, action dispatch, lifecycle transitions |
+| `#/reobservation` | **Closed-Loop Re-Observation** | Outcome verification, pre/post comparison, resolution audits |
+| `#/predictive` | **Predictive Intelligence** | Deterioration curves, monsoon surge risks, proactive actions |
+| `#/digital-twin` | **Urban Digital Twin** | 3D spatial state, H3 hexagon mesh, what-if scenario simulations |
+| `#/traffic` | **Traffic Intelligence** | Congestion levels, speed profiles, vehicle classification |
+| `#/pedestrian-safety` | **Pedestrian Safety** | High-risk pedestrian zones, conflict hotspots, zebra compliance |
+| `#/incidents` | **Incident Response** | Traffic incident logs, ANPR detections, evidence inspector |
+| `#/edge-queue` | **Edge Queue** | Offline store-and-forward telemetry, connectivity toggles |
+| `#/analytics` | **Fleet & City Analytics** | Historical trends, fleet utilization, reliability benchmarks |
+
+---
+
+## 4. Local Installation & Development
+
+### Prerequisites
+- **Python**: 3.10+ (tested on Python 3.10, 3.11, 3.12)
 - **Node.js**: 18+ (with npm 9+)
 - **OS**: Windows, macOS, or Linux
 
-Clone the repository:
-```bash
-git clone <repository-url>
-cd urban-intelligence
-```
+### Quick Setup
+
+1. **Install Frontend Dependencies & Build Bundle**:
+   ```bash
+   npm install
+   npm run build
+   ```
+
+2. **Install Python Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Launch Platform Server**:
+   ```bash
+   python backend/main.py
+   ```
+   Open **http://localhost:8000** in your browser.
 
 ---
 
-## 4. Backend Setup
+## 5. Automated Test Suite
 
-1. Install Python dependencies:
+The platform includes full test suites covering both the AI algorithmic layer and the FastAPI backend layer:
+
+### Run AI Perception & Intelligence Unit Tests (103 Tests)
 ```bash
-pip install -r backend/requirements.txt
+python -m unittest discover -s ai
 ```
-*(Core packages: `fastapi`, `uvicorn`, `pydantic`, `pytest`, `httpx`)*
 
-2. Run backend test suite:
+### Run Backend API Integration Tests (77 Tests)
 ```bash
 python backend/test_api.py
 ```
 
-3. Start backend development server:
-```bash
-uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
----
-
-## 5. Frontend Setup
-
-1. Install Node dependencies:
-```bash
-npm install
-```
-
-2. Start frontend development server:
-```bash
-npm run dev
-```
-Development app will run at `http://localhost:5173/` (Vite automatically proxies `/api` requests to `http://127.0.0.1:8000`).
-
----
-
-## 6. Production Build
-
-To bundle the frontend for production:
+### Run Frontend Production Build Check
 ```bash
 npm run build
 ```
-This compiles TypeScript, bundles React assets, and outputs static production files to the `dist/` folder.
 
 ---
 
-## 7. Single-URL Operation
+## 6. System Health & Diagnostics
 
-In production mode, the entire platform is served from a single FastAPI server instance:
-
-```bash
-# Windows / Linux / macOS
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-Or via Python directly:
-```bash
-python backend/main.py
-```
-
-Access the single-URL application:
-- **Application UI**: `http://127.0.0.1:8000/`
-- **Map View**: `http://127.0.0.1:8000/#/map`
-- **Traffic Intelligence**: `http://127.0.0.1:8000/#/traffic`
-- **Road Defects**: `http://127.0.0.1:8000/#/defects`
-- **Incident Intelligence**: `http://127.0.0.1:8000/#/incidents`
-- **Analytics**: `http://127.0.0.1:8000/#/analytics`
-- **Digital Twin**: `http://127.0.0.1:8000/#/digital-twin`
-- **Interactive API Docs (Swagger)**: `http://127.0.0.1:8000/docs`
+The platform includes a dedicated diagnostic subsystem:
+- **`GET /api/system/health`**: Aggregates health status of all 5 SQLite databases (`authority_actions.db`, `reobservation.db`, `predictive_intelligence.db`, `human_review.db`, `edge_queue.db`), 11 AI perception and intelligence engines, and gateway services.
+- **`POST /api/system/reset-testbed`**: Deterministic testbed data refresher resetting initial evaluation baseline on demand without modifying core code.
+- **Global TopBar**: Live system health indicator, data mode badges, simulated GPS status, edge queue link, and the interactive **Workflow Tour**.
 
 ---
 
-## 8. API Health Endpoint
+## 7. License & Disclosures
 
-Check service health at `GET /api/health`:
-
-**Request**:
-```http
-GET /api/health HTTP/1.1
-Host: 127.0.0.1:8000
-```
-
-**Response**:
-```json
-{
-  "status": "ok",
-  "service": "urban-intelligence-api",
-  "environment": "production",
-  "timestamp": "2026-09-18T05:30:00.000000+00:00"
-}
-```
-
----
-
-## 9. AI Modules
-
-1. **Traffic Perception (`ai/traffic/`)**:
-   - YOLOv8/v11 vehicle detection across classes (car, bus, truck, motorcycle, auto-rickshaw).
-   - ByteTrack multi-object tracking for persistent ID association and trajectory tracking.
-   - Dynamic density estimation and congestion index calculation.
-
-2. **ANPR & OCR Engine (`ai/anpr/`)**:
-   - High-precision license plate region bounding and character segmentation.
-   - Regular expression validation conforming to Indian standard registration formats (e.g., `MH-12-XX-0000`).
-   - Synthetic test generator for edge verification.
-
-3. **Road Damage Perception (`ai/road_damage/`)**:
-   - Multi-defect classification (potholes, longitudinal/transverse cracks, surface alligatoring).
-   - Severity scoring based on bounding box dimensions and road footprint ratios.
-
-4. **Reliability & Calibration Layer (`ai/reliability/`)**:
-   - Multimodal confidence recalibration combining optical confidence, environmental conditions, and camera angle.
-   - Dampens false positives and filters transient occlusions before spatial persistence.
-
----
-
-## 10. GIS & Spatial Perception Engine
-
-- **Spatial Geometries**: Real-world pilot coordinates covering key Pune transport corridors.
-- **DBSCAN / Spatial Clustering**: Consolidates multiple sightings of the same pothole or defect from multiple bus passes into a canonical defect entity.
-- **MapLibre GL Integration**: Vector tile rendering, layer toggles, real-time vehicle breadcrumbs, and defect heatmaps.
-
----
-
-## 11. Incident Intelligence
-
-- **Automated Trigger Detection**: Detects suspect incidents such as hit-and-run departures, lane blockages, and severe congestion bottlenecks.
-- **Human-in-the-Loop Review**: Incident workflow transitions (`NEW` &rarr; `REVIEW` &rarr; `RESOLVED`) requiring human operator oversight before municipal dispatch.
-
----
-
-## 12. Analytics Suite
-
-- **Fleet Utilization**: Real-time tracking of active bus fleets, mileage, and camera uptimes.
-- **Corridor Transit Times**: Delay estimation and peak-hour congestion curves.
-- **Defect Density**: Longitudinal progression tracking of road deterioration.
-
----
-
-## 13. Urban Digital Twin & What-If Simulator
-
-- **Entity Model**: Digital representations of road segments (`TwinRoadSegment`), traffic zones (`TwinTrafficZone`), and urban assets (`TwinUrbanAsset`).
-- **State Updates**: Real-time ingestion of mobile observations updating segment health scores and delay estimates.
-- **What-If Simulation Engine**:
-  - *Congestion Surge*: Evaluates impact of sudden density spikes on downstream corridor transit times.
-  - *Road Defect Cluster*: Models road condition index degradation and computes maintenance advisory thresholds.
-
----
-
-## 14. Real vs. Simulated Components
-
-| Component | Nature / Implementation Status |
-| :--- | :--- |
-| **YOLO Detection & Tracking Logic** | Real algorithmic implementation (`ai/traffic`, `ai/road_damage`) |
-| **ANPR / OCR Logic & Format Validator** | Real algorithmic implementation (`ai/anpr`) |
-| **Reliability Scoring & Calibration** | Real algorithmic math (`ai/reliability`) |
-| **Digital Twin Simulation Engine** | Real deterministic model (`ai/digital_twin`) |
-| **GPS Telemetry & Transit Feeds** | Deterministic simulation across Pune pilot corridors |
-| **License Plate Test Datasets** | Synthetic/demo test plates for privacy compliance |
-| **Incident Triggers** | Algorithmic triggers with simulated video streams |
-| **Municipal Dispatch** | Human review required; advisory alerts |
-
----
-
-## 15. Known Limitations
-
-1. **Hardware Edge Sensing**: Live camera ingestion in this repository uses simulated video and test image feeds; on-vehicle edge deployment requires Jetson/Raspberry Pi hardware interfacing.
-2. **City-Wide Coverage**: The digital twin covers demonstrator pilot corridors; full metropolitan scaling requires fleet-wide telematics integration.
-3. **Environmental Variability**: Extreme weather (monsoon downpours, glare) uses calibration confidence dampening rather than specialized radar/LiDAR fusion.
-
----
-
-## 16. Render Cloud Deployment (Single Web Service)
-
-The platform is packaged as a **single unified Web Service** using a multi-stage Docker build. Render builds the React production dist in Stage 1 and serves both the API and the single-page application directly from FastAPI in Stage 2.
-
-### Architecture Comparison
-
-| Execution Mode | Role & Capabilities | Hardware / Runtime |
-| :--- | :--- | :--- |
-| **Local Development** | Full developer debugging, Vite HMR, pytest suites, backend hot reload. | Local PC / Workstation |
-| **Render Demo Deployment** | Cloud-hosted single-URL command center, REST API, GIS map, Digital Twin simulation, testbed demonstration. | Render Free Web Service (Docker container) |
-| **Edge AI Inference** | Heavy GPU/NPU video stream processing (YOLO, ByteTrack, EasyOCR). | On-bus Edge Hardware (Jetson Orin, Raspberry Pi 5) |
-
-### Deployment Configuration
-
-- **Service Type**: Render Web Service (`render.yaml`)
-- **Runtime**: Docker (`./Dockerfile`)
-- **Plan**: Free / Hobby
-- **Health Check Path**: `/api/health`
-- **Build Sequence (Multi-stage Dockerfile)**:
-  - *Stage 1 (Frontend)*: `npm ci && npm run build` (outputs `dist/`)
-  - *Stage 2 (Backend)*: `pip install -r backend/requirements.txt`
-- **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-
-### Environment Variables
-
-| Variable Name | Purpose | Recommended Production Value |
-| :--- | :--- | :--- |
-| `ENVIRONMENT` | Declares operational environment | `production` |
-| `VITE_API_BASE_URL` | Frontend API target (build-time) | `/api` |
-| `PORT` | Dynamic web port assigned by Render | Automatically injected by Render |
-| `CORS_ORIGINS` | Allowed external origins (optional) | Leave empty or set specific domain |
-
-### Free-Tier Behavior
-- On Render's Free tier, the service automatically spins down after 15 minutes of inactivity. Incoming HTTP requests wake the service in approximately 30–50 seconds.
-- Heavy continuous GPU inference is not executed on the free cloud instance; cloud deployment hosts the operational dashboard, GIS layers, analytical algorithms, and Digital Twin scenario modeling.
+Developed for the **Smart India Hackathon 2026** (Problem Statement PS 26124).  
+All mock data, simulated GPS paths, and synthetic video frames are strictly designed for prototype evaluation and decision-support demonstration.

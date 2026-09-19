@@ -58,6 +58,16 @@ class RoadSegment:
     last_updated: str = ""
     observation_source: str = "deterministic_simulation"
     is_simulated: bool = True
+    priority_score: int = 45
+    priority_level: str = "MEDIUM"
+    deterioration_index: float = 3.2
+    deterioration_trend: str = "SLOWLY_DETERIORATING"
+    estimated_cost_inr: int = 15000
+    cost_range_min_inr: int = 12000
+    cost_range_max_inr: int = 19000
+    lifecycle_counts: Dict[str, int] = field(default_factory=lambda: {
+        "DETECTED": 1, "VERIFIED": 0, "PRIORITIZED": 0, "REPAIR_ACTION": 0, "RE_OBSERVED": 0, "RESOLVED": 0
+    })
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

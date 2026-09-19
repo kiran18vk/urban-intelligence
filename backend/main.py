@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 
-from routers import stats, buses, events, defects, traffic, incidents, analytics, ai_traffic, anpr, ai_road_damage, reliability, digital_twin
+from routers import stats, buses, events, defects, traffic, incidents, analytics, ai_traffic, anpr, ai_road_damage, reliability, digital_twin, pedestrian_risk, edge_queue, live_monitor, event_correlation, human_review, authority_actions, reobservation, predictive, system
 
 app = FastAPI(
     title="Urban Intelligence Platform API",
@@ -77,6 +77,15 @@ api_router.include_router(anpr.router)
 api_router.include_router(ai_road_damage.router)
 api_router.include_router(reliability.router)
 api_router.include_router(digital_twin.router)
+api_router.include_router(pedestrian_risk.router)
+api_router.include_router(edge_queue.router)
+api_router.include_router(live_monitor.router)
+api_router.include_router(event_correlation.router)
+api_router.include_router(human_review.router)
+api_router.include_router(authority_actions.router)
+api_router.include_router(reobservation.router)
+api_router.include_router(predictive.router)
+api_router.include_router(system.router)
 
 app.include_router(api_router)
 
