@@ -425,12 +425,21 @@ export const ReviewCenterPage: React.FC = () => {
               <span>CONFIRMATION RATE</span>
               <UserCheck className="h-4 w-4 text-indigo-400" />
             </div>
-            <div className="mt-2 text-2xl font-bold text-indigo-200">
-              {(summary.confirmation_rate * 100).toFixed(1)}%
+            <div className="mt-2 flex items-baseline gap-1.5 text-2xl font-bold text-indigo-200">
+              <span>{(summary.confirmation_rate * 100).toFixed(1)}%</span>
+              <span className="text-xs font-mono font-normal text-indigo-300/70">
+                (n={summary.completed})
+              </span>
             </div>
-            <span className="text-[10px] text-slate-400 mt-1 leading-tight line-clamp-2">
-              Human confirmation rate among reviewed events
-            </span>
+            {summary.completed < 5 ? (
+              <span className="text-[10px] text-amber-300/90 mt-1 leading-tight font-medium">
+                Small sample (n &lt; 5) — not representative of model accuracy.
+              </span>
+            ) : (
+              <span className="text-[10px] text-slate-400 mt-1 leading-tight line-clamp-2">
+                Human confirmation rate among reviewed events (≠ model accuracy)
+              </span>
+            )}
           </div>
         </div>
       )}
