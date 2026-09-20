@@ -27,22 +27,52 @@ interface NavItem {
   badge?: number;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard },
-  { to: '/predictive', label: 'Predictive Intel', icon: Sparkles, badge: 6 },
-  { to: '/authority-actions', label: 'Action Center', icon: ShieldAlert, badge: 5 },
-  { to: '/reobservation', label: 'Re-Observation', icon: RotateCcw, badge: 6 },
-  { to: '/review-center', label: 'Review Center', icon: ClipboardCheck },
-  { to: '/live-monitor', label: 'Live Monitor', icon: Video },
-  { to: '/event-correlation', label: 'Event Correlation', icon: Layers },
-  { to: '/map', label: 'Live GIS Map', icon: Map },
-  { to: '/pedestrian-safety', label: 'Pedestrian Safety', icon: Users, badge: 4 },
-  { to: '/traffic', label: 'Traffic Intelligence', icon: TrafficCone, badge: 14 },
-  { to: '/defects', label: 'Road Defects', icon: CircleAlert, badge: 24 },
-  { to: '/incidents', label: 'Incident Response', icon: Siren, badge: 8 },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/digital-twin', label: 'Urban Digital Twin', icon: Boxes },
-  { to: '/edge-queue', label: 'Edge Queue', icon: HardDrive },
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'Overview',
+    items: [
+      { to: '/', label: 'Command Center', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Live Operations',
+    items: [
+      { to: '/live-monitor', label: 'Live Monitor', icon: Video },
+      { to: '/traffic', label: 'Traffic Intelligence', icon: TrafficCone, badge: 14 },
+      { to: '/map', label: 'Live GIS Map', icon: Map },
+      { to: '/defects', label: 'Road Defects', icon: CircleAlert, badge: 24 },
+      { to: '/incidents', label: 'Incident Response', icon: Siren, badge: 8 },
+      { to: '/pedestrian-safety', label: 'Pedestrian Safety', icon: Users, badge: 4 },
+    ],
+  },
+  {
+    title: 'Intelligence',
+    items: [
+      { to: '/event-correlation', label: 'Event Correlation', icon: Layers },
+      { to: '/predictive', label: 'Predictive Intel', icon: Sparkles, badge: 6 },
+      { to: '/digital-twin', label: 'Urban Digital Twin', icon: Boxes },
+      { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Response & Verification',
+    items: [
+      { to: '/review-center', label: 'Review Center', icon: ClipboardCheck },
+      { to: '/authority-actions', label: 'Action Center', icon: ShieldAlert, badge: 5 },
+      { to: '/reobservation', label: 'Re-Observation', icon: RotateCcw, badge: 6 },
+    ],
+  },
+  {
+    title: 'Edge & Sync',
+    items: [
+      { to: '/edge-queue', label: 'Edge Queue', icon: HardDrive },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -84,34 +114,50 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          <p className="px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Command Center</p>
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-accent-500/10 text-accent-300 ring-1 ring-inset ring-accent-500/20'
-                    : 'text-slate-400 hover:bg-ink-800 hover:text-slate-200'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <item.icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-accent-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span className="rounded-md bg-ink-700 px-1.5 py-0.5 text-[10px] font-semibold tabular text-slate-300">
-                      {item.badge}
-                    </span>
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-ink-700">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {group.title}
+              </p>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `group flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                      isActive
+                        ? 'bg-accent-500/15 text-accent-300 border border-accent-500/30 shadow-sm shadow-accent-500/10'
+                        : 'text-slate-400 hover:bg-ink-800/80 hover:text-slate-200'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        className={`h-4 w-4 shrink-0 transition-colors ${
+                          isActive ? 'text-accent-400' : 'text-slate-500 group-hover:text-slate-300'
+                        }`}
+                      />
+                      <span className="flex-1">{item.label}</span>
+                      {item.badge !== undefined && (
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-mono font-bold tabular transition-colors ${
+                            isActive
+                              ? 'bg-accent-500/25 text-accent-300 border border-accent-500/30'
+                              : 'bg-ink-800 text-slate-400 group-hover:text-slate-300'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </NavLink>
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

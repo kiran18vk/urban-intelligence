@@ -130,6 +130,30 @@ export function MapPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Header Banner */}
+      <div className="rounded-xl border border-ink-700 bg-ink-850 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Compass className="h-5 w-5 text-accent-400" />
+              <h1 className="text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">
+                Live GIS Map
+              </h1>
+              <span className="rounded bg-accent-500/20 border border-accent-500/30 px-2 py-0.5 text-[10px] font-mono font-bold text-accent-300 uppercase">
+                Geospatial Perception
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-400 sm:text-sm max-w-4xl">
+              Geospatial monitoring of real-time mobile fleet perceptions, active urban risks, pedestrian hotspots, and bus trajectories across Pune corridors.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-ink-900 px-3 py-1.5 rounded-lg border border-ink-750 text-[11px] text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Interactive GIS · 75% Map / 25% Inspector</span>
+          </div>
+        </div>
+      </div>
+
       {/* 1. Summary Metrics Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <div className="rounded-xl border border-ink-700 bg-ink-850 p-3.5 shadow-sm">

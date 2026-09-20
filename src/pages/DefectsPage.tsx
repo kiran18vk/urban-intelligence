@@ -172,6 +172,30 @@ export function DefectsPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Header Banner */}
+      <div className="rounded-xl border border-ink-700 bg-ink-850 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-5 w-5 text-amber-400" />
+              <h1 className="text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">
+                Road Defects
+              </h1>
+              <span className="rounded bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-300 uppercase">
+                6-Stage Lifecycle
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-400 sm:text-sm max-w-4xl">
+              AI-detected road conditions requiring inspection or maintenance — tracked from initial edge detection to verified authority repair.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-ink-900 px-3 py-1.5 rounded-lg border border-ink-750 text-[11px] text-slate-400">
+            <Info className="h-3.5 w-3.5 text-accent-400 flex-shrink-0" />
+            <span>Simulated testbed corridors with multi-bus cross-validation.</span>
+          </div>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
